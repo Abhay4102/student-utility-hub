@@ -57,6 +57,18 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom"],
+          "vendor-pdf-lib": ["pdf-lib"],
+          "vendor-pdfjs": ["pdfjs-dist"],
+          "vendor-bg-removal": ["@imgly/background-removal"],
+          "vendor-docx": ["docx"],
+          "vendor-image": ["browser-image-compression"],
+        },
+      },
+    },
   },
   server: {
     port,
