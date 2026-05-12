@@ -28,6 +28,7 @@ const PdfCompressor = lazy(() => import("@/pages/pdf/PdfCompressor"));
 const TextToPdf = lazy(() => import("@/pages/pdf/TextToPdf"));
 const WordMaker = lazy(() => import("@/pages/docs/WordMaker"));
 const UnitConverter = lazy(() => import("@/pages/tools/UnitConverter"));
+const PeriodicTable = lazy(() => import("@/pages/science/PeriodicTable"));
 
 function PageLoader() {
   return (
@@ -61,6 +62,7 @@ function Router() {
         <Route path="/pdf/text-to-pdf" component={TextToPdf} />
         <Route path="/docs/word-maker" component={WordMaker} />
         <Route path="/tools/unit-converter" component={UnitConverter} />
+        <Route path="/science/periodic-table" component={PeriodicTable} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

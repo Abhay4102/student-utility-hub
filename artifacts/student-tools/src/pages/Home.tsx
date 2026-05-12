@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Search, Calculator, FileImage, FileText, FileOutput, FileInput, Minimize2, Eraser, FilePlus, FileEdit, Lock, Unlock, Merge, Scissors, Archive, FileType2, ArrowLeftRight } from "lucide-react";
+import { Search, Calculator, FileImage, FileText, FileOutput, FileInput, Minimize2, Eraser, FilePlus, FileEdit, Lock, Unlock, Merge, Scissors, Archive, FileType2, ArrowLeftRight, FlaskConical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 const tools = [
   { title: "Calculator", description: "Scientific calculator with history", href: "/calculator", icon: Calculator, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400", category: "Utilities", badge: "amber" },
   { title: "Unit Converter", description: "Convert length, weight, temperature, speed, volume & more", href: "/tools/unit-converter", icon: ArrowLeftRight, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400", category: "Utilities", badge: "amber" },
+  { title: "Periodic Table", description: "All 118 elements with atomic mass, config, melting & boiling points", href: "/science/periodic-table", icon: FlaskConical, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400", category: "Science", badge: "emerald" },
   { title: "JPG to PDF", description: "Convert JPG images to PDF documents", href: "/image/jpg-to-pdf", icon: FileOutput, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400", category: "Image Tools", badge: "blue" },
   { title: "PDF to JPG", description: "Extract pages from PDF as JPG images", href: "/image/pdf-to-jpg", icon: FileInput, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400", category: "Image Tools", badge: "blue" },
   { title: "JPG to PNG", description: "Convert JPG to transparent-friendly PNG", href: "/image/jpg-to-png", icon: FileImage, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400", category: "Image Tools", badge: "blue" },
@@ -25,12 +26,13 @@ const tools = [
   { title: "Text to PDF", description: "Convert plain text to a PDF document", href: "/pdf/text-to-pdf", icon: FileText, color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400", category: "PDF Tools", badge: "red" },
 ];
 
-const categories = ["All", "Image Tools", "PDF Tools", "Document Tools", "Utilities"];
+const categories = ["All", "Image Tools", "PDF Tools", "Document Tools", "Utilities", "Science"];
 
 const badgeColors: Record<string, string> = {
   blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
   red: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
   green: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+  emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
   amber: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
 };
 
