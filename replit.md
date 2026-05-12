@@ -1,36 +1,49 @@
-# [Project name]
+# Student Tools Hub
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+An all-in-one student toolkit web app — image converters, PDF tools, background remover, photo resizer, scientific calculator, and Word document maker. Everything runs client-side in the browser; no server uploads.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/student-tools run dev` — run the frontend (auto via workflow)
+- `pnpm --filter @workspace/api-server run dev` — run the API server (port 8080)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Frontend: React + Vite + Tailwind CSS v4 + shadcn/ui
+- Routing: wouter
+- PDF: pdf-lib, pdfjs-dist
+- Image: browser-image-compression, @imgly/background-removal
+- Docs: docx (Word .docx generation)
+- API: Express 5 (minimal, health check only)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/student-tools/src/pages/` — all tool pages
+- `artifacts/student-tools/src/pages/image/` — image conversion tools
+- `artifacts/student-tools/src/pages/pdf/` — PDF tools
+- `artifacts/student-tools/src/pages/docs/` — document tools
+- `artifacts/student-tools/src/components/` — shared components (ToolLayout, FileDropZone)
+- `artifacts/student-tools/src/App.tsx` — routing
+- `artifacts/student-tools/src/index.css` — theme (indigo/violet primary)
+
+## Tools included
+
+Image: JPG→PDF, PDF→JPG, JPG→PNG, PNG→JPG, PNG→PDF, PDF→PNG, Photo Resizer, Background Remover
+PDF: Maker, Editor, Locker, Unlocker, Merger, Splitter, Compressor, Text→PDF
+Docs: Word File Maker (.docx)
+Utilities: Scientific Calculator
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
-
-## Product
-
-_Describe the high-level user-facing capabilities of this app once they exist._
+- All file processing is 100% client-side — no backend uploads
+- pdf-lib for creating/modifying PDFs; pdfjs-dist for rendering/reading PDFs
+- @imgly/background-removal uses ONNX AI model in the browser (15-30s processing)
+- browser-image-compression for photo resizing/compression
+- docx library generates .docx Word files in the browser
+- Indigo/violet primary color scheme with category-coded accent colors
 
 ## User preferences
 
@@ -38,7 +51,9 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Background removal loads an AI model on first use — takes 15-30 seconds, which is normal
+- pdfjs-dist worker must be configured with `workerSrc` pointing to the CDN/bundled worker
+- docx library generates Word files without needing a backend
 
 ## Pointers
 
