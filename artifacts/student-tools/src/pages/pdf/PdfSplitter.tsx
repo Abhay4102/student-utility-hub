@@ -6,10 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PDFDocument } from "pdf-lib";
-import * as pdfjsLib from "pdfjs-dist";
+import { pdfjsLib } from "@/lib/pdfjs";
 import { toast } from "sonner";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).href;
 
 export default function PdfSplitter() {
   const [file, setFile] = useState<File | null>(null);

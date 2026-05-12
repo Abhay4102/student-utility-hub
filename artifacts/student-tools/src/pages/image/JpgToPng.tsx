@@ -20,27 +20,37 @@ export default function JpgToPng() {
   function reset() { setFile(null); setPreview(null); setPngUrl(null); }
 
   async function convert() {
-    if (!file || !preview) return;
+    if (!file) return;
     setLoading(true);
     try {
-      const img = new Image();
-      img.src = preview;
-      await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = rej; });
+      const bitmap = await createImageBitmap(file);
       const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
       const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0);
-      canvas.toBlob((blob) => {
-        if (!blob) { toast.error("Conversion failed"); setLoading(false); return; }
-        setPngUrl(URL.createObjectURL(blob));
-        setLoading(false);
-        toast.success("Converted to PNG!");
-      }, "image/png");
-    } catch {
-      toast.error("Conversion failed.");
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const blob = await new Promise<Blob>((res, rej) =>
+        canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), "image/png")
+      );
+      setPngUrl(URL.createObjectURL(blob));
+      toast.success("Converted to PNG!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Conversion failed. Make sure it's a valid JPG image.");
+    } finally {
       setLoading(false);
     }
+  }
+
+  function download() {
+    if (!pngUrl || !file) return;
+    const a = document.createElement("a");
+    a.href = pngUrl;
+    a.download = file.name.replace(/\.[^.]+$/, "") + ".png";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   return (
@@ -57,7 +67,11 @@ export default function JpgToPng() {
           <FileDropZone onFile={handleFile} accept=".jpg,.jpeg" label="Drop a JPG image here" description="or click to browse" />
         ) : (
           <div className="bg-card border border-card-border rounded-xl p-5 space-y-4">
-            {preview && <div className="flex justify-center"><img src={pngUrl || preview} alt="Preview" className="max-h-48 rounded-lg object-contain shadow-sm" /></div>}
+            {preview && (
+              <div className="flex justify-center">
+                <img src={pngUrl || preview} alt="Preview" className="max-h-48 rounded-lg object-contain shadow-sm" />
+              </div>
+            )}
             <div className="flex items-center justify-between text-sm">
               <div><p className="font-medium">{file.name}</p><p className="text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p></div>
               <button onClick={reset} className="text-muted-foreground hover:text-foreground" data-testid="reset-btn"><RotateCcw className="w-4 h-4" /></button>
@@ -68,9 +82,9 @@ export default function JpgToPng() {
               </Button>
             ) : (
               <div className="space-y-2">
-                <a href={pngUrl} download={file.name.replace(/\.[^.]+$/, "") + ".png"} data-testid="download-btn">
-                  <Button className="w-full"><Download className="w-4 h-4 mr-2" />Download PNG</Button>
-                </a>
+                <Button onClick={download} className="w-full" data-testid="download-btn">
+                  <Download className="w-4 h-4 mr-2" />Download PNG
+                </Button>
                 <Button variant="outline" onClick={reset} className="w-full">Try another file</Button>
               </div>
             )}

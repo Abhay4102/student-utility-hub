@@ -15,30 +15,36 @@ export default function JpgToPdf() {
   function handleFile(f: File) {
     setFile(f);
     setPdfUrl(null);
-    const url = URL.createObjectURL(f);
-    setPreview(url);
+    setPreview(URL.createObjectURL(f));
   }
 
-  function reset() {
-    setFile(null);
-    setPreview(null);
-    setPdfUrl(null);
-  }
+  function reset() { setFile(null); setPreview(null); setPdfUrl(null); }
 
   async function convert() {
     if (!file) return;
     setLoading(true);
     try {
-      const bytes = await file.arrayBuffer();
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const blob = await new Promise<Blob>((res, rej) =>
+        canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), "image/jpeg", 0.95)
+      );
+      const bytes = new Uint8Array(await blob.arrayBuffer());
       const pdfDoc = await PDFDocument.create();
-      const img = await pdfDoc.embedJpg(new Uint8Array(bytes));
+      const img = await pdfDoc.embedJpg(bytes);
       const page = pdfDoc.addPage([img.width, img.height]);
       page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
       const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
-      setPdfUrl(URL.createObjectURL(blob));
+      const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
+      setPdfUrl(URL.createObjectURL(pdfBlob));
       toast.success("Conversion complete!");
     } catch (err) {
+      console.error(err);
       toast.error("Failed to convert. Make sure it's a valid JPG file.");
     } finally {
       setLoading(false);
@@ -50,7 +56,9 @@ export default function JpgToPdf() {
     const a = document.createElement("a");
     a.href = pdfUrl;
     a.download = file.name.replace(/\.[^.]+$/, "") + ".pdf";
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
   }
 
   return (
@@ -81,15 +89,14 @@ export default function JpgToPdf() {
                 <RotateCcw className="w-4 h-4" />
               </button>
             </div>
-
             {!pdfUrl ? (
               <Button onClick={convert} disabled={loading} className="w-full" data-testid="convert-btn">
-                {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Converting...</> : "Convert to PDF"}
+                {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Converting...</> : "Convert to PDF"}
               </Button>
             ) : (
               <div className="space-y-2">
                 <Button onClick={download} className="w-full" data-testid="download-btn">
-                  <Download className="w-4 h-4 mr-2" /> Download PDF
+                  <Download className="w-4 h-4 mr-2" />Download PDF
                 </Button>
                 <Button variant="outline" onClick={reset} className="w-full">Try another file</Button>
               </div>

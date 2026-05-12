@@ -19,20 +19,41 @@ export default function PngToPdf() {
     if (!file) return;
     setLoading(true);
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
+      const bitmap = await createImageBitmap(file);
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close();
+      const blob = await new Promise<Blob>((res, rej) =>
+        canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), "image/png")
+      );
+      const bytes = new Uint8Array(await blob.arrayBuffer());
       const pdfDoc = await PDFDocument.create();
       const img = await pdfDoc.embedPng(bytes);
       const page = pdfDoc.addPage([img.width, img.height]);
       page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
       const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
-      setPdfUrl(URL.createObjectURL(blob));
+      const pdfBlob = new Blob([pdfBytes], { type: "application/pdf" });
+      setPdfUrl(URL.createObjectURL(pdfBlob));
       toast.success("Conversion complete!");
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to convert. Make sure it's a valid PNG file.");
     } finally {
       setLoading(false);
     }
+  }
+
+  function download() {
+    if (!pdfUrl || !file) return;
+    const a = document.createElement("a");
+    a.href = pdfUrl;
+    a.download = file.name.replace(/\.[^.]+$/, "") + ".pdf";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   return (
@@ -60,9 +81,9 @@ export default function PngToPdf() {
               </Button>
             ) : (
               <div className="space-y-2">
-                <a href={pdfUrl} download={file.name.replace(/\.[^.]+$/, "") + ".pdf"} data-testid="download-btn">
-                  <Button className="w-full"><Download className="w-4 h-4 mr-2" />Download PDF</Button>
-                </a>
+                <Button onClick={download} className="w-full" data-testid="download-btn">
+                  <Download className="w-4 h-4 mr-2" />Download PDF
+                </Button>
                 <Button variant="outline" onClick={reset} className="w-full">Try another file</Button>
               </div>
             )}

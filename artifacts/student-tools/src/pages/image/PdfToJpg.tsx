@@ -3,32 +3,23 @@ import { FileDropZone } from "@/components/FileDropZone";
 import { ToolLayout } from "@/components/ToolLayout";
 import { FileInput, Download, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import * as pdfjsLib from "pdfjs-dist";
+import { pdfjsLib } from "@/lib/pdfjs";
 import { toast } from "sonner";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).href;
 
 export default function PdfToJpg() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<string[]>([]);
 
-  function handleFile(f: File) {
-    setFile(f);
-    setImages([]);
-  }
-
-  function reset() {
-    setFile(null);
-    setImages([]);
-  }
+  function handleFile(f: File) { setFile(f); setImages([]); }
+  function reset() { setFile(null); setImages([]); }
 
   async function convert() {
     if (!file) return;
     setLoading(true);
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
       const urls: string[] = [];
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
@@ -37,25 +28,30 @@ export default function PdfToJpg() {
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d")!;
-        await page.render({ canvasContext: ctx, viewport }).promise;
+        await page.render({ canvasContext: ctx as unknown as CanvasRenderingContext2D, viewport }).promise;
         urls.push(canvas.toDataURL("image/jpeg", 0.92));
       }
       setImages(urls);
       toast.success(`Converted ${urls.length} page${urls.length > 1 ? "s" : ""}!`);
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Failed to convert. Make sure it's a valid PDF file.");
     } finally {
       setLoading(false);
     }
   }
 
+  function downloadOne(url: string, name: string) {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
   function downloadAll() {
-    images.forEach((url, i) => {
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `page-${i + 1}.jpg`;
-      a.click();
-    });
+    images.forEach((url, i) => downloadOne(url, `page-${i + 1}.jpg`));
   }
 
   return (
@@ -84,7 +80,7 @@ export default function PdfToJpg() {
 
             {images.length === 0 ? (
               <Button onClick={convert} disabled={loading} className="w-full" data-testid="convert-btn">
-                {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Converting pages...</> : "Convert to JPG"}
+                {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Converting pages...</> : "Convert to JPG"}
               </Button>
             ) : (
               <>
@@ -92,21 +88,20 @@ export default function PdfToJpg() {
                   {images.map((url, i) => (
                     <div key={i} className="relative group">
                       <img src={url} alt={`Page ${i + 1}`} className="w-full rounded-lg border border-border shadow-xs" />
-                      <a
-                        href={url}
-                        download={`page-${i + 1}.jpg`}
+                      <button
+                        onClick={() => downloadOne(url, `page-${i + 1}.jpg`)}
                         data-testid={`download-page-${i + 1}`}
                         className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <Download className="w-6 h-6 text-white" />
-                      </a>
+                      </button>
                       <p className="text-xs text-center text-muted-foreground mt-1">Page {i + 1}</p>
                     </div>
                   ))}
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={downloadAll} className="flex-1" data-testid="download-all-btn">
-                    <Download className="w-4 h-4 mr-2" /> Download All
+                    <Download className="w-4 h-4 mr-2" />Download All
                   </Button>
                   <Button variant="outline" onClick={reset}>Try another file</Button>
                 </div>

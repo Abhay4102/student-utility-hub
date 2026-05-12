@@ -5,11 +5,9 @@ import { FileEdit, Download, RotateCcw, Loader2, Plus, ChevronLeft, ChevronRight
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import * as pdfjsLib from "pdfjs-dist";
+import { pdfjsLib } from "@/lib/pdfjs";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { toast } from "sonner";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url).href;
 
 interface Annotation { x: number; y: number; text: string; page: number; }
 

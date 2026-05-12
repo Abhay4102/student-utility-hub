@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Search, Calculator, FileImage, FileText, Image, FileOutput, FileInput, Minimize2, Eraser, FilePlus, FileEdit, Lock, Unlock, Merge, Scissors, Archive, FileType2 } from "lucide-react";
+import { Search, Calculator, FileImage, FileText, FileOutput, FileInput, Minimize2, Eraser, FilePlus, FileEdit, Lock, Unlock, Merge, Scissors, Archive, FileType2, ArrowLeftRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 
 const tools = [
   { title: "Calculator", description: "Scientific calculator with history", href: "/calculator", icon: Calculator, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400", category: "Utilities", badge: "amber" },
+  { title: "Unit Converter", description: "Convert length, weight, temperature, speed, volume & more", href: "/tools/unit-converter", icon: ArrowLeftRight, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400", category: "Utilities", badge: "amber" },
   { title: "JPG to PDF", description: "Convert JPG images to PDF documents", href: "/image/jpg-to-pdf", icon: FileOutput, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400", category: "Image Tools", badge: "blue" },
   { title: "PDF to JPG", description: "Extract pages from PDF as JPG images", href: "/image/pdf-to-jpg", icon: FileInput, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400", category: "Image Tools", badge: "blue" },
   { title: "JPG to PNG", description: "Convert JPG to transparent-friendly PNG", href: "/image/jpg-to-png", icon: FileImage, color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400", category: "Image Tools", badge: "blue" },

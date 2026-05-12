@@ -27,6 +27,7 @@ const PdfSplitter = lazy(() => import("@/pages/pdf/PdfSplitter"));
 const PdfCompressor = lazy(() => import("@/pages/pdf/PdfCompressor"));
 const TextToPdf = lazy(() => import("@/pages/pdf/TextToPdf"));
 const WordMaker = lazy(() => import("@/pages/docs/WordMaker"));
+const UnitConverter = lazy(() => import("@/pages/tools/UnitConverter"));
 
 function PageLoader() {
   return (
@@ -59,6 +60,7 @@ function Router() {
         <Route path="/pdf/compress" component={PdfCompressor} />
         <Route path="/pdf/text-to-pdf" component={TextToPdf} />
         <Route path="/docs/word-maker" component={WordMaker} />
+        <Route path="/tools/unit-converter" component={UnitConverter} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
