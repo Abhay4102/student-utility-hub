@@ -29,6 +29,7 @@ const TextToPdf = lazy(() => import("@/pages/pdf/TextToPdf"));
 const WordMaker = lazy(() => import("@/pages/docs/WordMaker"));
 const UnitConverter = lazy(() => import("@/pages/tools/UnitConverter"));
 const PeriodicTable = lazy(() => import("@/pages/science/PeriodicTable"));
+const PhysicsCalculator = lazy(() => import("@/pages/science/PhysicsCalculator"));
 
 function PageLoader() {
   return (
@@ -63,6 +64,7 @@ function Router() {
         <Route path="/docs/word-maker" component={WordMaker} />
         <Route path="/tools/unit-converter" component={UnitConverter} />
         <Route path="/science/periodic-table" component={PeriodicTable} />
+        <Route path="/science/physics-calculator" component={PhysicsCalculator} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

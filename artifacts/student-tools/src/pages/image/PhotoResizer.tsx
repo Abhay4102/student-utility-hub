@@ -6,9 +6,53 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import imageCompression from "browser-image-compression";
+import { PDFDocument } from "pdf-lib";
+import { pdfjsLib } from "@/lib/pdfjs";
 import { toast } from "sonner";
 
 type Mode = "dimensions" | "size";
+
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+function isPdf(file: File) {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
+
+async function renderPdfPagesToBlobs(file: File, scale: number, quality: number): Promise<Blob[]> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+  const blobs: Blob[] = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext("2d")!;
+    await page.render({ canvasContext: ctx as unknown as CanvasRenderingContext2D, viewport }).promise;
+    const blob = await new Promise<Blob>((res, rej) =>
+      canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), "image/jpeg", quality)
+    );
+    blobs.push(blob);
+  }
+  return blobs;
+}
+
+async function buildPdfFromPageBlobs(blobs: Blob[]): Promise<Blob> {
+  const pdfDoc = await PDFDocument.create();
+  for (const blob of blobs) {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const img = await pdfDoc.embedJpg(bytes);
+    const page = pdfDoc.addPage([img.width, img.height]);
+    page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+  }
+  const pdfBytes = await pdfDoc.save();
+  return new Blob([pdfBytes], { type: "application/pdf" });
+}
 
 export default function PhotoResizer() {
   const [file, setFile] = useState<File | null>(null);
@@ -16,73 +60,144 @@ export default function PhotoResizer() {
   const [mode, setMode] = useState<Mode>("dimensions");
   const [width, setWidth] = useState("");
   const [height, setHeight] = useState("");
+  const [keepRatio, setKeepRatio] = useState(true);
+  const [origW, setOrigW] = useState(0);
+  const [origH, setOrigH] = useState(0);
   const [targetSize, setTargetSize] = useState("500");
   const [targetUnit, setTargetUnit] = useState<"KB" | "MB" | "GB">("KB");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ url: string; size: number } | null>(null);
+  const [result, setResult] = useState<{ url: string; size: number; name: string } | null>(null);
 
-  function handleFile(f: File) {
+  async function handleFile(f: File) {
     setFile(f);
     setResult(null);
-    const img = new Image();
-    const url = URL.createObjectURL(f);
-    setPreview(url);
-    img.onload = () => {
-      setWidth(String(img.naturalWidth));
-      setHeight(String(img.naturalHeight));
-    };
-    img.src = url;
+    if (isPdf(f)) {
+      setPreview(null);
+      const arrayBuffer = await f.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+      const page = await pdf.getPage(1);
+      const vp = page.getViewport({ scale: 1 });
+      setOrigW(Math.round(vp.width));
+      setOrigH(Math.round(vp.height));
+      setWidth(String(Math.round(vp.width)));
+      setHeight(String(Math.round(vp.height)));
+    } else {
+      const bitmap = await createImageBitmap(f);
+      setOrigW(bitmap.width);
+      setOrigH(bitmap.height);
+      setWidth(String(bitmap.width));
+      setHeight(String(bitmap.height));
+      bitmap.close();
+      setPreview(URL.createObjectURL(f));
+    }
   }
 
-  function reset() { setFile(null); setPreview(null); setResult(null); }
+  function reset() { setFile(null); setPreview(null); setResult(null); setOrigW(0); setOrigH(0); }
+
+  function onWidthChange(v: string) {
+    setWidth(v);
+    if (keepRatio && origW && origH) {
+      const w = parseInt(v);
+      if (!isNaN(w) && w > 0) setHeight(String(Math.round(w * origH / origW)));
+    }
+  }
+
+  function onHeightChange(v: string) {
+    setHeight(v);
+    if (keepRatio && origW && origH) {
+      const h = parseInt(v);
+      if (!isNaN(h) && h > 0) setWidth(String(Math.round(h * origW / origH)));
+    }
+  }
 
   async function resize() {
     if (!file) return;
     setLoading(true);
     try {
+      const fileIsPdf = isPdf(file);
+
       if (mode === "size") {
         const unitMultiplier = targetUnit === "KB" ? 1 / 1024 : targetUnit === "MB" ? 1 : 1024;
         const maxSizeMB = parseFloat(targetSize) * unitMultiplier;
-        const compressed = await imageCompression(file, { maxSizeMB, useWebWorker: true });
-        setResult({ url: URL.createObjectURL(compressed), size: compressed.size });
-        toast.success("Image compressed successfully!");
+        const targetBytes = maxSizeMB * 1024 * 1024;
+
+        if (fileIsPdf) {
+          let quality = 0.85;
+          let scale = 1.0;
+          let blob: Blob | null = null;
+          for (let attempt = 0; attempt < 8; attempt++) {
+            const blobs = await renderPdfPagesToBlobs(file, scale, quality);
+            blob = await buildPdfFromPageBlobs(blobs);
+            if (blob.size <= targetBytes || (quality <= 0.3 && scale <= 0.5)) break;
+            if (quality > 0.3) quality -= 0.1;
+            else scale = Math.max(0.3, scale - 0.1);
+          }
+          const url = URL.createObjectURL(blob!);
+          setResult({ url, size: blob!.size, name: file.name.replace(/\.pdf$/i, "-resized.pdf") });
+          toast.success("PDF compressed!");
+        } else {
+          const compressed = await imageCompression(file, { maxSizeMB, useWebWorker: true });
+          setResult({ url: URL.createObjectURL(compressed), size: compressed.size, name: `resized-${file.name}` });
+          toast.success("Image compressed!");
+        }
+
       } else {
         const w = parseInt(width);
         const h = parseInt(height);
-        if (!w || !h) { toast.error("Enter valid dimensions"); setLoading(false); return; }
-        const img = new Image();
-        img.src = URL.createObjectURL(file);
-        await new Promise<void>((res) => { img.onload = () => res(); });
-        const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d")!;
-        ctx.drawImage(img, 0, 0, w, h);
-        canvas.toBlob((blob) => {
-          if (!blob) { toast.error("Resize failed"); setLoading(false); return; }
-          setResult({ url: URL.createObjectURL(blob), size: blob.size });
-          setLoading(false);
+        if (!w || !h || w <= 0 || h <= 0) { toast.error("Enter valid dimensions"); setLoading(false); return; }
+
+        if (fileIsPdf) {
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+          const firstPage = await pdf.getPage(1);
+          const origVp = firstPage.getViewport({ scale: 1 });
+          const scale = Math.min(w / origVp.width, h / origVp.height);
+          const blobs = await renderPdfPagesToBlobs(file, scale, 0.9);
+          const blob = await buildPdfFromPageBlobs(blobs);
+          setResult({ url: URL.createObjectURL(blob), size: blob.size, name: file.name.replace(/\.pdf$/i, `-${w}x${h}.pdf`) });
+          toast.success("PDF resized!");
+        } else {
+          const bitmap = await createImageBitmap(file);
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(bitmap, 0, 0, w, h);
+          bitmap.close();
+          const mimeType = file.type === "image/png" ? "image/png" : "image/jpeg";
+          const blob = await new Promise<Blob>((res, rej) =>
+            canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), mimeType, 0.92)
+          );
+          const ext = mimeType === "image/png" ? ".png" : ".jpg";
+          const name = file.name.replace(/\.[^.]+$/, "") + `-${w}x${h}${ext}`;
+          setResult({ url: URL.createObjectURL(blob), size: blob.size, name });
           toast.success("Image resized!");
-        }, file.type || "image/jpeg", 0.92);
-        return;
+        }
       }
-    } catch {
-      toast.error("Failed to process image.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Processing failed. Please try again.");
     } finally {
       setLoading(false);
     }
   }
 
-  const formatSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-  };
+  function download() {
+    if (!result) return;
+    const a = document.createElement("a");
+    a.href = result.url;
+    a.download = result.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  const fileIsPdf = file ? isPdf(file) : false;
 
   return (
     <ToolLayout
-      title="Photo Resizer"
-      description="Resize images by dimensions or compress to a target file size"
+      title="Photo & PDF Resizer"
+      description="Resize JPG, PNG, or PDF files by pixel dimensions or compress to a target file size"
       category="Image Tools"
       categoryHref="/"
       icon={<Minimize2 className="w-6 h-6 text-blue-700 dark:text-blue-400" />}
@@ -90,35 +205,49 @@ export default function PhotoResizer() {
     >
       <div className="space-y-4">
         {!file ? (
-          <FileDropZone onFile={handleFile} accept=".jpg,.jpeg,.png,.webp" label="Drop an image here" description="or click to browse — JPG, PNG, WebP accepted" />
+          <FileDropZone
+            onFile={handleFile}
+            accept=".jpg,.jpeg,.png,.webp,.pdf"
+            label="Drop a JPG, PNG, or PDF here"
+            description="or click to browse — JPG, PNG, WebP, PDF accepted"
+          />
         ) : (
           <div className="bg-card border border-card-border rounded-xl p-5 space-y-5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-sm">{file.name}</p>
-                <p className="text-xs text-muted-foreground">Original: {formatSize(file.size)}</p>
+                <p className="text-xs text-muted-foreground">
+                  Original: {formatSize(file.size)}
+                  {origW > 0 && !fileIsPdf && ` · ${origW}×${origH}px`}
+                  {origW > 0 && fileIsPdf && ` · page size ~${origW}×${origH}pt`}
+                </p>
               </div>
-              <button onClick={reset} className="text-muted-foreground hover:text-foreground" data-testid="reset-btn"><RotateCcw className="w-4 h-4" /></button>
+              <button onClick={reset} className="text-muted-foreground hover:text-foreground" data-testid="reset-btn">
+                <RotateCcw className="w-4 h-4" />
+              </button>
             </div>
 
-            {preview && !result && (
+            {preview && !result && !fileIsPdf && (
               <div className="flex justify-center">
                 <img src={preview} alt="Preview" className="max-h-40 rounded-lg object-contain" />
               </div>
             )}
 
+            {fileIsPdf && !result && (
+              <div className="rounded-lg bg-muted/40 border border-border px-4 py-3 text-sm text-muted-foreground text-center">
+                PDF — {origW}×{origH} pt per page
+              </div>
+            )}
+
             {result && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Original</p>
-                  <img src={preview!} alt="Original" className="max-h-32 rounded-lg object-contain mx-auto" />
-                  <p className="text-xs mt-1 font-medium">{formatSize(file.size)}</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Result</p>
-                  <img src={result.url} alt="Result" className="max-h-32 rounded-lg object-contain mx-auto" />
-                  <p className="text-xs mt-1 font-medium text-green-600">{formatSize(result.size)}</p>
-                </div>
+              <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-center space-y-1">
+                <p className="text-sm font-semibold text-foreground">Ready to download</p>
+                <p className="text-xs text-muted-foreground">
+                  {formatSize(file.size)} → <span className="text-green-400 font-medium">{formatSize(result.size)}</span>
+                  {result.size < file.size && (
+                    <span className="ml-1 text-green-400">({Math.round((1 - result.size / file.size) * 100)}% smaller)</span>
+                  )}
+                </p>
               </div>
             )}
 
@@ -136,21 +265,32 @@ export default function PhotoResizer() {
             </div>
 
             {mode === "dimensions" ? (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <Label htmlFor="width">Width (px)</Label>
-                  <Input id="width" data-testid="input-width" type="number" value={width} onChange={(e) => setWidth(e.target.value)} className="mt-1" />
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="width">Width (px)</Label>
+                    <Input id="width" data-testid="input-width" type="number" min={1} value={width} onChange={(e) => onWidthChange(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label htmlFor="height">Height (px)</Label>
+                    <Input id="height" data-testid="input-height" type="number" min={1} value={height} onChange={(e) => onHeightChange(e.target.value)} className="mt-1" />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="height">Height (px)</Label>
-                  <Input id="height" data-testid="input-height" type="number" value={height} onChange={(e) => setHeight(e.target.value)} className="mt-1" />
-                </div>
+                <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={keepRatio}
+                    onChange={(e) => setKeepRatio(e.target.checked)}
+                    className="rounded"
+                  />
+                  Maintain aspect ratio
+                </label>
               </div>
             ) : (
               <div className="flex gap-2">
                 <div className="flex-1">
                   <Label htmlFor="target-size">Target Size</Label>
-                  <Input id="target-size" data-testid="input-target-size" type="number" value={targetSize} onChange={(e) => setTargetSize(e.target.value)} className="mt-1" />
+                  <Input id="target-size" data-testid="input-target-size" type="number" min={1} value={targetSize} onChange={(e) => setTargetSize(e.target.value)} className="mt-1" />
                 </div>
                 <div>
                   <Label>Unit</Label>
@@ -165,13 +305,15 @@ export default function PhotoResizer() {
 
             {!result ? (
               <Button onClick={resize} disabled={loading} className="w-full" data-testid="resize-btn">
-                {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing...</> : "Resize Image"}
+                {loading
+                  ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Processing{fileIsPdf ? " PDF..." : " image..."}</>
+                  : `Resize ${fileIsPdf ? "PDF" : "Image"}`}
               </Button>
             ) : (
               <div className="space-y-2">
-                <a href={result.url} download={`resized-${file.name}`} data-testid="download-btn">
-                  <Button className="w-full"><Download className="w-4 h-4 mr-2" />Download Result</Button>
-                </a>
+                <Button onClick={download} className="w-full" data-testid="download-btn">
+                  <Download className="w-4 h-4 mr-2" />Download Result
+                </Button>
                 <Button variant="outline" onClick={() => setResult(null)} className="w-full">Try different settings</Button>
               </div>
             )}
