@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { Search, Calculator, FileImage, FileText, FileOutput, FileInput, Minimize2, Eraser, FilePlus, FileEdit, Lock, Unlock, Merge, Scissors, Archive, FileType2, ArrowLeftRight, FlaskConical, Atom } from "lucide-react";
+import { Search, Calculator, FileImage, FileText, FileOutput, FileInput, Minimize2, Eraser, FilePlus, FileEdit, Lock, Unlock, Merge, Scissors, Archive, FileType2, ArrowLeftRight, FlaskConical, Atom, BookOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 const tools = [
+  { title: "Study Assistant", description: "Ask any academic question — get clear, detailed AI-powered answers instantly", href: "/ai/study-assistant", icon: BookOpen, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400", category: "AI", badge: "violet" },
   { title: "Calculator", description: "Scientific calculator with history", href: "/calculator", icon: Calculator, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400", category: "Utilities", badge: "amber" },
   { title: "Unit Converter", description: "Convert length, weight, temperature, speed, volume & more", href: "/tools/unit-converter", icon: ArrowLeftRight, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400", category: "Utilities", badge: "amber" },
   { title: "Periodic Table", description: "All 118 elements with atomic mass, config, melting & boiling points", href: "/science/periodic-table", icon: FlaskConical, color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400", category: "Science", badge: "emerald" },
@@ -27,7 +28,7 @@ const tools = [
   { title: "Text to PDF", description: "Convert plain text to a PDF document", href: "/pdf/text-to-pdf", icon: FileText, color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400", category: "PDF Tools", badge: "red" },
 ];
 
-const categories = ["All", "Image Tools", "PDF Tools", "Document Tools", "Utilities", "Science"];
+const categories = ["All", "AI", "Image Tools", "PDF Tools", "Document Tools", "Utilities", "Science"];
 
 const badgeColors: Record<string, string> = {
   blue: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400",
@@ -35,6 +36,7 @@ const badgeColors: Record<string, string> = {
   green: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
   emerald: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400",
   amber: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400",
+  violet: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400",
 };
 
 export default function Home() {

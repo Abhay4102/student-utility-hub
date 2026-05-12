@@ -30,6 +30,7 @@ const WordMaker = lazy(() => import("@/pages/docs/WordMaker"));
 const UnitConverter = lazy(() => import("@/pages/tools/UnitConverter"));
 const PeriodicTable = lazy(() => import("@/pages/science/PeriodicTable"));
 const PhysicsCalculator = lazy(() => import("@/pages/science/PhysicsCalculator"));
+const StudyAssistant = lazy(() => import("@/pages/ai/StudyAssistant"));
 
 function PageLoader() {
   return (
@@ -65,6 +66,7 @@ function Router() {
         <Route path="/tools/unit-converter" component={UnitConverter} />
         <Route path="/science/periodic-table" component={PeriodicTable} />
         <Route path="/science/physics-calculator" component={PhysicsCalculator} />
+        <Route path="/ai/study-assistant" component={StudyAssistant} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
