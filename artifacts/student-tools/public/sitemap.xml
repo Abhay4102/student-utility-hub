@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://treotools.in/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+
+  <!-- AI -->
+  <url><loc>https://treotools.in/ai/study-assistant</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://treotools.in/ai/notes-maker</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+
+  <!-- Utilities -->
+  <url><loc>https://treotools.in/tools/gpa-calculator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/tools/attendance-calculator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/calculator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/tools/unit-converter</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+
+  <!-- Science -->
+  <url><loc>https://treotools.in/science/periodic-table</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/science/physics-calculator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+
+  <!-- Image Tools -->
+  <url><loc>https://treotools.in/image/jpg-to-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/image/pdf-to-jpg</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/image/jpg-to-png</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://treotools.in/image/png-to-jpg</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://treotools.in/image/png-to-pdf</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://treotools.in/image/pdf-to-png</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://treotools.in/image/resize</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/image/background</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+
+  <!-- PDF Tools -->
+  <url><loc>https://treotools.in/pdf/maker</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/pdf/editor</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/pdf/lock</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://treotools.in/pdf/unlock</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://treotools.in/pdf/merge</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://treotools.in/pdf/split</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/pdf/compress</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/pdf/text-to-pdf</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://treotools.in/pdf/pdf-to-word</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/pdf/word-to-pdf</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+
+  <!-- Docs -->
+  <url><loc>https://treotools.in/docs/word-maker</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+
+  <!-- Legal -->
+  <url><loc>https://treotools.in/about</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://treotools.in/contact</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://treotools.in/privacy</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://treotools.in/terms</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://treotools.in/copyright</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+</urlset>
