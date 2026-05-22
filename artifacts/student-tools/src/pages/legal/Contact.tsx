@@ -4,7 +4,7 @@ import { InfoPageLayout } from "@/components/InfoPageLayout";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-const CONTACT_EMAIL = "support@treotools.app";
+const CONTACT_EMAIL = "treotools@gmail.com";
 
 export default function Contact() {
   const [copied, setCopied] = useState(false);
