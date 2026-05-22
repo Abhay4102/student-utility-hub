@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
 interface ToolLayoutProps {
@@ -19,6 +19,14 @@ export function ToolLayout({ title, description, category, categoryHref, icon, i
         <Link href="/" className="inline-flex items-center gap-2 hover:opacity-80 transition-opacity">
           <Logo size={24} />
           <span className="font-bold tracking-tight text-foreground text-sm">TREO TOOL&apos;S</span>
+        </Link>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-card-border text-sm text-foreground hover:bg-muted/40 transition-colors"
+          data-testid="link-back-home"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>Back to Home</span>
         </Link>
       </div>
       <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-6" aria-label="Breadcrumb">
