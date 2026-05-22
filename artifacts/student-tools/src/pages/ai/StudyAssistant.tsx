@@ -1,28 +1,93 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, BookOpen, RotateCcw, Copy, Check, Image as ImageIcon, X, Mic, Square } from "lucide-react";
+import {
+  Send, Loader2, BookOpen, RotateCcw, Copy, Check, Image as ImageIcon, X,
+  Mic, Square, Plus, MessageSquare, Trash2, Download, RefreshCw, StopCircle, Settings2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+
+type Mode = "standard" | "concise" | "detailed" | "step" | "exam" | "eli12";
+type Subject = "General" | "Math" | "Science" | "Physics" | "Chemistry" | "Biology" | "History" | "Literature" | "Languages" | "Geography" | "Economics" | "Programming";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   imageDataUrl?: string;
+  imageBase64?: string;
+  imageMime?: string;
 }
 
-const SUGGESTED = [
-  "Explain photosynthesis step by step",
-  "How do I solve quadratic equations?",
-  "What caused World War I?",
-  "Explain Newton's laws of motion",
-  "Difference between mitosis and meiosis?",
-  "How does compound interest work?",
-];
+interface Chat {
+  id: string;
+  title: string;
+  messages: Message[];
+  mode: Mode;
+  subject: Subject;
+  updatedAt: number;
+}
+
+const MODE_LABELS: Record<Mode, { label: string; hint: string }> = {
+  standard: { label: "Standard", hint: "Clear, balanced answers" },
+  concise: { label: "Concise", hint: "Brief, to the point" },
+  detailed: { label: "Detailed", hint: "Thorough, in-depth" },
+  step: { label: "Step-by-step", hint: "Numbered solution steps" },
+  exam: { label: "Exam-ready", hint: "Mark-scheme style" },
+  eli12: { label: "ELI12", hint: "Explain simply" },
+};
+
+const SUBJECTS: Subject[] = ["General", "Math", "Science", "Physics", "Chemistry", "Biology", "History", "Literature", "Languages", "Geography", "Economics", "Programming"];
+
+const SUGGESTIONS_BY_SUBJECT: Record<Subject, string[]> = {
+  General: ["Explain photosynthesis step by step", "How does compound interest work?", "Summarise the French Revolution", "Difference between mitosis and meiosis", "What is opportunity cost?", "Explain Newton's laws"],
+  Math: ["Solve 2x² − 5x − 3 = 0 step by step", "Explain the chain rule with an example", "Difference between permutation and combination", "Prove sin²θ + cos²θ = 1", "How do I integrate by parts?", "Explain logarithms simply"],
+  Science: ["Explain Newton's three laws of motion", "How does the immune system fight infection?", "What is the periodic table organised by?", "Difference between weather and climate", "Explain the water cycle", "How does electricity flow in a circuit?"],
+  Physics: ["Explain Ohm's law with an example", "How do projectile motion equations work?", "What is wave-particle duality?", "Derive v = u + at", "Explain Newton's law of gravitation", "What is the doppler effect?"],
+  Chemistry: ["Balance: H₂ + O₂ → H₂O", "Explain pH and pOH with examples", "Difference between ionic and covalent bonds", "How does the periodic table work?", "What is Le Chatelier's principle?", "Explain electron configuration of Fe"],
+  Biology: ["Explain DNA replication step by step", "Mitosis vs meiosis comparison", "How do enzymes work?", "Explain photosynthesis (light + dark reactions)", "What is natural selection?", "Structure of a neuron"],
+  History: ["Causes of World War I", "Summarise the Industrial Revolution", "Compare French and American Revolutions", "Cold War: major events", "Rise and fall of the Roman Empire", "Causes of the Great Depression"],
+  Literature: ["Themes in Macbeth", "Analyse 'The Road Not Taken'", "What is dramatic irony? Give examples", "Difference between metaphor and simile", "Summarise Pride and Prejudice", "Iambic pentameter explained"],
+  Languages: ["Difference between past simple and present perfect", "Spanish 'ser' vs 'estar' with examples", "Common French faux amis", "When to use ‘who’ vs ‘whom’", "Active vs passive voice rules", "How to use 'whom' correctly"],
+  Geography: ["What causes earthquakes?", "Difference between weather and climate", "How do ocean currents work?", "Tectonic plate boundaries explained", "Causes and effects of urbanisation", "Layers of the atmosphere"],
+  Economics: ["Explain supply and demand", "What is GDP and how is it calculated?", "Difference between fiscal and monetary policy", "Explain opportunity cost with an example", "What causes inflation?", "Comparative advantage explained"],
+  Programming: ["Difference between let, var and const in JavaScript", "Explain time complexity with O(n) examples", "How does a hash map work?", "What is recursion? Give a simple example", "Explain object-oriented programming concepts", "Difference between SQL and NoSQL"],
+};
+
+const CHATS_KEY = "treo-study-chats";
+const PREFS_KEY = "treo-study-prefs";
+
+function loadChats(): Chat[] {
+  try {
+    const raw = localStorage.getItem(CHATS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+function saveChats(chats: Chat[]) {
+  try { localStorage.setItem(CHATS_KEY, JSON.stringify(chats)); } catch { /* quota */ }
+}
+function loadPrefs(): { mode: Mode; subject: Subject } {
+  try {
+    const raw = localStorage.getItem(PREFS_KEY);
+    return raw ? JSON.parse(raw) : { mode: "standard", subject: "General" };
+  } catch { return { mode: "standard", subject: "General" }; }
+}
+function savePrefs(p: { mode: Mode; subject: Subject }) {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch { /* quota */ }
+}
+
+function newChatId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function chatTitleFrom(text: string): string {
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean.length > 48 ? clean.slice(0, 45) + "…" : clean || "New chat";
+}
 
 function renderInline(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\$[^$\n]+\$)/g);
   return parts.map((p, i) => {
     if (p.startsWith("**") && p.endsWith("**")) return <strong key={i} className="font-semibold">{p.slice(2, -2)}</strong>;
+    if (p.startsWith("$") && p.endsWith("$") && p.length > 2)
+      return <span key={i} className="font-mono italic text-primary">{p.slice(1, -1)}</span>;
     if (p.startsWith("*") && p.endsWith("*") && p.length > 2) return <em key={i} className="italic">{p.slice(1, -1)}</em>;
     if (p.startsWith("`") && p.endsWith("`") && p.length > 2)
       return <code key={i} className="px-1.5 py-0.5 rounded bg-background/60 text-xs font-mono">{p.slice(1, -1)}</code>;
@@ -70,7 +135,11 @@ function renderMessage(content: string): React.ReactNode[] {
   return out;
 }
 
-function MessageBubble({ msg, onCopy }: { msg: Message; onCopy: (text: string) => void }) {
+function MessageBubble({
+  msg, onCopy, onRegenerate, isLast,
+}: {
+  msg: Message; onCopy: (text: string) => void; onRegenerate?: () => void; isLast?: boolean;
+}) {
   const isUser = msg.role === "user";
   const [copied, setCopied] = useState(false);
 
@@ -89,35 +158,32 @@ function MessageBubble({ msg, onCopy }: { msg: Message; onCopy: (text: string) =
       )}
       <div className={`group max-w-[85%] ${isUser ? "order-first" : ""}`}>
         {msg.imageDataUrl && (
-          <img
-            src={msg.imageDataUrl}
-            alt="uploaded"
-            className="max-w-xs rounded-xl mb-1.5 border border-border"
-          />
+          <img src={msg.imageDataUrl} alt="uploaded" className="max-w-xs rounded-xl mb-1.5 border border-border" />
         )}
         {msg.content && (
           <div
             className={`rounded-2xl px-4 py-3 text-sm ${
-              isUser
-                ? "bg-primary text-primary-foreground rounded-tr-sm"
+              isUser ? "bg-primary text-primary-foreground rounded-tr-sm"
                 : "bg-muted text-foreground rounded-tl-sm"
             }`}
           >
-            {isUser ? (
-              <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-            ) : (
-              <div className="space-y-0.5">{renderMessage(msg.content)}</div>
-            )}
+            {isUser
+              ? <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+              : <div className="space-y-0.5">{renderMessage(msg.content)}</div>}
           </div>
         )}
         {!isUser && msg.content && (
-          <button
-            onClick={handleCopy}
-            className="mt-1 ml-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-          >
-            {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-            {copied ? "Copied" : "Copy"}
-          </button>
+          <div className="mt-1 ml-1 flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={handleCopy} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              {copied ? "Copied" : "Copy"}
+            </button>
+            {isLast && onRegenerate && (
+              <button onClick={onRegenerate} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                <RefreshCw className="w-3 h-3" /> Regenerate
+              </button>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -150,65 +216,102 @@ async function blobToBase64(blob: Blob): Promise<string> {
 }
 
 export default function StudyAssistant() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [chats, setChats] = useState<Chat[]>(() => loadChats());
+  const [currentId, setCurrentId] = useState<string>(() => {
+    const all = loadChats();
+    return all[0]?.id || "";
+  });
+
+  const initialPrefs = loadPrefs();
+  const [mode, setMode] = useState<Mode>(initialPrefs.mode);
+  const [subject, setSubject] = useState<Subject>(initialPrefs.subject);
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [pendingImage, setPendingImage] = useState<{ base64: string; dataUrl: string; mime: string } | null>(null);
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const abortRef = useRef<AbortController | null>(null);
 
+  const current = chats.find((c) => c.id === currentId);
+  const messages = current?.messages || [];
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, streamingContent]);
+  useEffect(() => { savePrefs({ mode, subject }); }, [mode, subject]);
+  useEffect(() => { saveChats(chats); }, [chats]);
+
+  // Sync mode/subject changes onto the current chat so export + history reflect them.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+    if (!currentId) return;
+    setChats((prev) => prev.map((c) => (c.id === currentId && (c.mode !== mode || c.subject !== subject))
+      ? { ...c, mode, subject }
+      : c));
+  }, [mode, subject, currentId]);
+
+  // When switching to a different chat, restore its mode/subject into the selectors.
+  useEffect(() => {
+    if (!current) return;
+    if (current.mode && current.mode !== mode) setMode(current.mode);
+    if (current.subject && current.subject !== subject) setSubject(current.subject);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentId]);
+
+  const ensureChat = useCallback((firstUserText?: string): Chat => {
+    if (current) return current;
+    const c: Chat = {
+      id: newChatId(),
+      title: firstUserText ? chatTitleFrom(firstUserText) : "New chat",
+      messages: [],
+      mode, subject,
+      updatedAt: Date.now(),
+    };
+    setChats((prev) => [c, ...prev]);
+    setCurrentId(c.id);
+    return c;
+  }, [current, mode, subject]);
+
+  const updateChat = useCallback((id: string, patch: Partial<Chat>) => {
+    setChats((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch, updatedAt: Date.now() } : c)));
+  }, []);
 
   const handleImagePick = async (file: File) => {
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please choose an image file");
-      return;
-    }
-    if (file.size > 8 * 1024 * 1024) {
-      toast.error("Image must be under 8 MB");
-      return;
-    }
+    if (!file.type.startsWith("image/")) { toast.error("Please choose an image file"); return; }
+    if (file.size > 8 * 1024 * 1024) { toast.error("Image must be under 8 MB"); return; }
     const { base64, dataUrl } = await fileToBase64(file);
     setPendingImage({ base64, dataUrl, mime: file.type });
   };
 
-  const sendMessage = useCallback(async (questionArg?: string) => {
-    const question = (questionArg ?? input).trim();
-    if (!question && !pendingImage) return;
-    if (loading) return;
-
-    const userMsg: Message = {
-      role: "user",
-      content: question || (pendingImage ? "Please analyze this image." : ""),
-      imageDataUrl: pendingImage?.dataUrl,
-    };
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
-
-    const imageForRequest = pendingImage;
-    setInput("");
-    setPendingImage(null);
+  const runRequest = useCallback(async (
+    chatId: string,
+    historyForRequest: Message[],
+    userMsg: Message,
+    imageForRequest: { base64: string; mime: string } | null,
+  ) => {
     setLoading(true);
     setStreamingContent("");
+    abortRef.current = new AbortController();
+    let fullContent = "";
 
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}api/ai/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortRef.current.signal,
         body: JSON.stringify({
-          question: question || "Please analyze this image.",
-          history: messages.slice(-10).map((m) => ({ role: m.role, content: m.content })),
+          question: userMsg.content,
+          history: historyForRequest.slice(-12).map((m) => ({ role: m.role, content: m.content })),
           imageBase64: imageForRequest?.base64,
           imageMimeType: imageForRequest?.mime,
+          mode, subject,
         }),
       });
 
@@ -217,66 +320,109 @@ export default function StudyAssistant() {
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
-      let fullContent = "";
-
       let streamError: string | null = null;
       let done = false;
+
       while (!done) {
         const { done: rdDone, value } = await reader.read();
         if (rdDone) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
-
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           let data: { content?: string; error?: string; done?: boolean } | null = null;
-          try {
-            data = JSON.parse(line.slice(6));
-          } catch {
-            continue;
-          }
+          try { data = JSON.parse(line.slice(6)); } catch { continue; }
           if (!data) continue;
           if (data.error) { streamError = data.error; done = true; break; }
           if (data.done) { done = true; break; }
-          if (data.content) {
-            fullContent += data.content;
-            setStreamingContent(fullContent);
-          }
+          if (data.content) { fullContent += data.content; setStreamingContent(fullContent); }
         }
       }
 
       if (streamError) throw new Error(streamError);
-      setMessages((prev) => [...prev, { role: "assistant", content: fullContent }]);
+      setChats((prev) => prev.map((c) => c.id === chatId ? {
+        ...c,
+        messages: [...c.messages, { role: "assistant" as const, content: fullContent }],
+        updatedAt: Date.now(),
+      } : c));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      if ((err as Error).name === "AbortError") {
+        if (fullContent) {
+          setChats((prev) => prev.map((c) => c.id === chatId ? {
+            ...c,
+            messages: [...c.messages, { role: "assistant" as const, content: fullContent + "\n\n_(stopped)_" }],
+            updatedAt: Date.now(),
+          } : c));
+        }
+      } else {
+        toast.error(err instanceof Error ? err.message : "Something went wrong");
+      }
     } finally {
       setLoading(false);
       setStreamingContent("");
+      abortRef.current = null;
       textareaRef.current?.focus();
     }
-  }, [messages, loading, input, pendingImage]);
+  }, [mode, subject]);
+
+  const sendMessage = useCallback(async (questionArg?: string) => {
+    const question = (questionArg ?? input).trim();
+    if (!question && !pendingImage) return;
+    if (loading) return;
+
+    const chat = ensureChat(question || "Image analysis");
+    const userMsg: Message = {
+      role: "user",
+      content: question || (pendingImage ? "Please analyze this image." : ""),
+      imageDataUrl: pendingImage?.dataUrl,
+      imageBase64: pendingImage?.base64,
+      imageMime: pendingImage?.mime,
+    };
+    const imageForRequest = pendingImage ? { base64: pendingImage.base64, mime: pendingImage.mime } : null;
+    const baseHistory = chat.messages;
+    setChats((prev) => prev.map((c) => c.id === chat.id ? {
+      ...c,
+      title: c.messages.length === 0 ? chatTitleFrom(userMsg.content) : c.title,
+      messages: [...c.messages, userMsg],
+      updatedAt: Date.now(),
+    } : c));
+
+    setInput("");
+    setPendingImage(null);
+
+    await runRequest(chat.id, baseHistory, userMsg, imageForRequest);
+  }, [input, pendingImage, loading, ensureChat, runRequest]);
+
+  const regenerate = useCallback(async () => {
+    if (!current || loading) return;
+    const lastAssistantIdx = [...current.messages].reverse().findIndex((m) => m.role === "assistant");
+    if (lastAssistantIdx === -1) return;
+    const realIdx = current.messages.length - 1 - lastAssistantIdx;
+    const before = current.messages.slice(0, realIdx);
+    const lastUser = [...before].reverse().find((m) => m.role === "user");
+    if (!lastUser) return;
+    updateChat(current.id, { messages: before });
+    const img = lastUser.imageBase64 && lastUser.imageMime
+      ? { base64: lastUser.imageBase64, mime: lastUser.imageMime }
+      : null;
+    await runRequest(current.id, before.slice(0, -1), lastUser, img);
+  }, [current, loading, runRequest, updateChat]);
+
+  const stopGenerating = () => abortRef.current?.abort();
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mime = MediaRecorder.isTypeSupported("audio/webm")
-        ? "audio/webm"
-        : MediaRecorder.isTypeSupported("audio/mp4")
-        ? "audio/mp4"
-        : "";
-      const recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm"
+        : MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "";
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
       audioChunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
-        if (blob.size < 1000) {
-          toast.error("Recording too short");
-          return;
-        }
+        if (blob.size < 1000) { toast.error("Recording too short"); return; }
         setTranscribing(true);
         try {
           const base64 = await blobToBase64(blob);
@@ -292,16 +438,12 @@ export default function StudyAssistant() {
           textareaRef.current?.focus();
         } catch (err) {
           toast.error(err instanceof Error ? err.message : "Failed to transcribe");
-        } finally {
-          setTranscribing(false);
-        }
+        } finally { setTranscribing(false); }
       };
       recorder.start();
       recorderRef.current = recorder;
       setRecording(true);
-    } catch {
-      toast.error("Microphone access denied");
-    }
+    } catch { toast.error("Microphone access denied"); }
   };
 
   const stopRecording = () => {
@@ -313,10 +455,7 @@ export default function StudyAssistant() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
   const handleCopy = (text: string) => {
@@ -324,162 +463,261 @@ export default function StudyAssistant() {
     toast.success("Copied to clipboard");
   };
 
-  const reset = () => {
-    setMessages([]);
+  const newChat = () => {
+    setCurrentId("");
     setInput("");
     setStreamingContent("");
     setPendingImage(null);
+    setSidebarOpen(false);
   };
 
-  return (
-    <div className="flex flex-col h-screen bg-background">
-      <div className="border-b border-border px-4 py-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center">
-            <BookOpen className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="font-semibold text-foreground text-sm">Study Assistant</h1>
-            <p className="text-xs text-muted-foreground">Text, voice & image — AI-powered academic help</p>
-          </div>
-        </div>
-        {messages.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={reset} className="gap-1.5 text-xs">
-            <RotateCcw className="w-3.5 h-3.5" />
-            New chat
-          </Button>
-        )}
-      </div>
+  const deleteChat = (id: string) => {
+    setChats((prev) => prev.filter((c) => c.id !== id));
+    if (currentId === id) setCurrentId("");
+  };
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {messages.length === 0 && !loading && (
-          <div className="flex flex-col items-center justify-center h-full gap-6 pb-10">
-            <div className="text-center space-y-2">
-              <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mx-auto">
-                <BookOpen className="w-8 h-8 text-primary" />
-              </div>
-              <h2 className="text-xl font-bold text-foreground">Study Assistant</h2>
-              <p className="text-sm text-muted-foreground max-w-md">
-                Type, speak, or upload an image — ask anything about your studies and get clear, detailed answers.
+  const exportChat = () => {
+    if (!current || current.messages.length === 0) return;
+    const md = current.messages.map((m) => {
+      const head = m.role === "user" ? "## 🧑 You" : "## 📘 Study Assistant";
+      return `${head}\n\n${m.content}`;
+    }).join("\n\n---\n\n");
+    const full = `# ${current.title}\n\n_Subject: ${current.subject} · Mode: ${MODE_LABELS[current.mode].label}_\n\n${md}`;
+    const blob = new Blob([full], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${current.title.replace(/[^\w-]+/g, "_")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Chat exported");
+  };
+
+  const sortedChats = [...chats].sort((a, b) => b.updatedAt - a.updatedAt);
+  const subjectSuggestions = SUGGESTIONS_BY_SUBJECT[subject];
+
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <aside className={`${sidebarOpen ? "block" : "hidden"} md:block w-72 border-r border-border bg-card/30 shrink-0 flex-col h-full`}>
+        <div className="p-3 border-b border-border">
+          <Button onClick={newChat} className="w-full gap-2" size="sm" data-testid="new-chat">
+            <Plus className="w-4 h-4" /> New chat
+          </Button>
+        </div>
+        <div className="overflow-y-auto" style={{ height: "calc(100% - 60px)" }}>
+          {sortedChats.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-8 px-4">Your past chats will appear here.</p>
+          ) : (
+            <ul className="p-2 space-y-1">
+              {sortedChats.map((c) => (
+                <li key={c.id}>
+                  <button
+                    onClick={() => { setCurrentId(c.id); setSidebarOpen(false); }}
+                    className={`group w-full text-left px-2.5 py-2 rounded-lg flex items-start gap-2 transition-colors ${c.id === currentId ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium truncate">{c.title}</p>
+                      <p className="text-[10px] text-muted-foreground/70">
+                        {c.subject} · {c.messages.length} msg · {new Date(c.updatedAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteChat(c.id); }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-opacity"
+                      aria-label="Delete chat"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </aside>
+
+      <div className="flex flex-col h-screen flex-1 min-w-0">
+        <div className="border-b border-border px-4 py-3 flex items-center justify-between shrink-0 gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <button className="md:hidden p-1.5 rounded-md hover:bg-muted" onClick={() => setSidebarOpen((o) => !o)} aria-label="Menu">
+              <MessageSquare className="w-4 h-4" />
+            </button>
+            <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+              <BookOpen className="w-5 h-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="font-semibold text-foreground text-sm truncate">{current?.title || "Study Assistant"}</h1>
+              <p className="text-xs text-muted-foreground truncate">
+                {subject} · {MODE_LABELS[mode].label} · {MODE_LABELS[mode].hint}
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
-              {SUGGESTED.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => sendMessage(s)}
-                  className="text-left px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-sm text-foreground"
-                >
-                  {s}
-                </button>
-              ))}
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="sm" onClick={() => setSettingsOpen((o) => !o)} className="gap-1.5 text-xs" data-testid="toggle-settings">
+              <Settings2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Mode</span>
+            </Button>
+            {current && current.messages.length > 0 && (
+              <>
+                <Button variant="ghost" size="sm" onClick={exportChat} className="gap-1.5 text-xs">
+                  <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">Export</span>
+                </Button>
+                <Button variant="ghost" size="sm" onClick={newChat} className="gap-1.5 text-xs">
+                  <RotateCcw className="w-3.5 h-3.5" /><span className="hidden sm:inline">New</span>
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {settingsOpen && (
+          <div className="border-b border-border bg-muted/20 px-4 py-3 shrink-0 space-y-3">
+            <div>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">Subject</p>
+              <div className="flex flex-wrap gap-1.5">
+                {SUBJECTS.map((s) => (
+                  <button
+                    key={s}
+                    data-testid={`subject-${s}`}
+                    onClick={() => setSubject(s)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${subject === s ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"}`}
+                  >{s}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">Answer style</p>
+              <div className="flex flex-wrap gap-1.5">
+                {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
+                  <button
+                    key={m}
+                    data-testid={`mode-${m}`}
+                    onClick={() => setMode(m)}
+                    title={MODE_LABELS[m].hint}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${mode === m ? "bg-violet-500 text-white" : "bg-card border border-border text-muted-foreground hover:text-foreground"}`}
+                  >{MODE_LABELS[m].label}</button>
+                ))}
+              </div>
             </div>
           </div>
         )}
 
-        {messages.map((msg, i) => (
-          <MessageBubble key={i} msg={msg} onCopy={handleCopy} />
-        ))}
-
-        {loading && streamingContent && (
-          <div className="flex gap-3 justify-start">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
-              <BookOpen className="w-4 h-4 text-primary" />
-            </div>
-            <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-4 py-3 text-sm text-foreground">
-              <div className="space-y-0.5">{renderMessage(streamingContent)}</div>
-            </div>
-          </div>
-        )}
-
-        {loading && !streamingContent && (
-          <div className="flex gap-3 justify-start">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-              <BookOpen className="w-4 h-4 text-primary" />
-            </div>
-            <div className="rounded-2xl rounded-tl-sm bg-muted px-4 py-3">
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-            </div>
-          </div>
-        )}
-
-        <div ref={bottomRef} />
-      </div>
-
-      <div className="border-t border-border px-4 py-3 shrink-0">
-        <div className="max-w-3xl mx-auto">
-          {pendingImage && (
-            <div className="mb-2 relative inline-block">
-              <img src={pendingImage.dataUrl} alt="preview" className="h-20 rounded-lg border border-border" />
-              <button
-                onClick={() => setPendingImage(null)}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center hover:bg-foreground/80"
-                aria-label="Remove image"
-              >
-                <X className="w-3 h-3" />
-              </button>
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+          {messages.length === 0 && !loading && (
+            <div className="flex flex-col items-center justify-center h-full gap-6 pb-10">
+              <div className="text-center space-y-2">
+                <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mx-auto">
+                  <BookOpen className="w-8 h-8 text-primary" />
+                </div>
+                <h2 className="text-xl font-bold text-foreground">Study Assistant</h2>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  Type, speak, or upload an image — pick a subject and a style, and get clear, focused answers.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
+                {subjectSuggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => sendMessage(s)}
+                    className="text-left px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-sm text-foreground"
+                  >{s}</button>
+                ))}
+              </div>
             </div>
           )}
-          <div className="flex gap-2 items-end">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleImagePick(f);
-                e.target.value = "";
-              }}
+
+          {messages.map((msg, i) => (
+            <MessageBubble
+              key={i}
+              msg={msg}
+              onCopy={handleCopy}
+              onRegenerate={regenerate}
+              isLast={msg.role === "assistant" && i === messages.length - 1 && !loading}
             />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={loading || recording}
-              className="shrink-0 h-11 w-11"
-              title="Attach an image"
-            >
-              <ImageIcon className="w-4 h-4" />
-            </Button>
-            <Button
-              variant={recording ? "destructive" : "outline"}
-              size="icon"
-              onClick={recording ? stopRecording : startRecording}
-              disabled={loading || transcribing}
-              className="shrink-0 h-11 w-11"
-              title={recording ? "Stop recording" : "Record voice message"}
-            >
-              {transcribing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : recording ? (
-                <Square className="w-4 h-4 fill-current" />
+          ))}
+
+          {loading && streamingContent && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
+                <BookOpen className="w-4 h-4 text-primary" />
+              </div>
+              <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-4 py-3 text-sm text-foreground">
+                <div className="space-y-0.5">{renderMessage(streamingContent)}</div>
+              </div>
+            </div>
+          )}
+
+          {loading && !streamingContent && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                <BookOpen className="w-4 h-4 text-primary" />
+              </div>
+              <div className="rounded-2xl rounded-tl-sm bg-muted px-4 py-3">
+                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+              </div>
+            </div>
+          )}
+
+          <div ref={bottomRef} />
+        </div>
+
+        <div className="border-t border-border px-4 py-3 shrink-0">
+          <div className="max-w-3xl mx-auto">
+            {pendingImage && (
+              <div className="mb-2 relative inline-block">
+                <img src={pendingImage.dataUrl} alt="preview" className="h-20 rounded-lg border border-border" />
+                <button
+                  onClick={() => setPendingImage(null)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center hover:bg-foreground/80"
+                  aria-label="Remove image"
+                ><X className="w-3 h-3" /></button>
+              </div>
+            )}
+            <div className="flex gap-2 items-end">
+              <input
+                ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImagePick(f); e.target.value = ""; }}
+              />
+              <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()}
+                disabled={loading || recording} className="shrink-0 h-11 w-11" title="Attach an image">
+                <ImageIcon className="w-4 h-4" />
+              </Button>
+              <Button variant={recording ? "destructive" : "outline"} size="icon"
+                onClick={recording ? stopRecording : startRecording}
+                disabled={loading || transcribing} className="shrink-0 h-11 w-11"
+                title={recording ? "Stop recording" : "Record voice message"}>
+                {transcribing ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : recording ? <Square className="w-4 h-4 fill-current" />
+                  : <Mic className="w-4 h-4" />}
+              </Button>
+              <Textarea
+                ref={textareaRef} value={input} onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={recording ? "Recording… tap stop when done"
+                  : transcribing ? "Transcribing…"
+                  : `Ask anything about ${subject === "General" ? "your studies" : subject}…`}
+                className="resize-none min-h-[44px] max-h-[160px] text-sm"
+                rows={1} disabled={loading || recording || transcribing}
+              />
+              {loading ? (
+                <Button onClick={stopGenerating} size="icon" variant="destructive"
+                  className="shrink-0 h-11 w-11" title="Stop generating">
+                  <StopCircle className="w-4 h-4" />
+                </Button>
               ) : (
-                <Mic className="w-4 h-4" />
+                <Button onClick={() => sendMessage()}
+                  disabled={(!input.trim() && !pendingImage) || recording || transcribing}
+                  size="icon" className="shrink-0 h-11 w-11">
+                  <Send className="w-4 h-4" />
+                </Button>
               )}
-            </Button>
-            <Textarea
-              ref={textareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={recording ? "Recording… tap stop when done" : transcribing ? "Transcribing…" : "Type, speak, or attach an image…"}
-              className="resize-none min-h-[44px] max-h-[160px] text-sm"
-              rows={1}
-              disabled={loading || recording || transcribing}
-            />
-            <Button
-              onClick={() => sendMessage()}
-              disabled={(!input.trim() && !pendingImage) || loading || recording || transcribing}
-              size="icon"
-              className="shrink-0 h-11 w-11"
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            </Button>
+            </div>
+            <p className="text-center text-xs text-muted-foreground mt-2">
+              {recording ? "🔴 Recording in progress…" : "TREO TOOL'S · For academic study purposes only"}
+            </p>
           </div>
-          <p className="text-center text-xs text-muted-foreground mt-2">
-            {recording ? "🔴 Recording in progress…" : "For academic study purposes only · Powered by AI"}
-          </p>
         </div>
       </div>
     </div>
