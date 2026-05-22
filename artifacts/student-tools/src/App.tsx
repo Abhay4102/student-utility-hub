@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
+import { WelcomePopup } from "@/components/WelcomePopup";
 
 const queryClient = new QueryClient();
 
@@ -90,6 +91,7 @@ function App() {
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Router />
         </WouterRouter>
+        <WelcomePopup />
         <Toaster richColors position="bottom-right" />
       </TooltipProvider>
     </QueryClientProvider>
