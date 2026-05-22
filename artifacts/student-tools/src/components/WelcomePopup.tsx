@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { X, Sparkles } from "lucide-react";
+import { X, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { Logo } from "@/components/Logo";
 
-const SESSION_KEY = "treo-welcome-shown";
+const STORAGE_KEY = "treo-welcome-shown-v1";
 
 function playWelcomeChime() {
   try {
@@ -25,10 +25,9 @@ function playWelcomeChime() {
       osc.type = "sine";
       osc.frequency.value = n.freq;
 
-      // Gentle bell-like envelope.
       const t0 = now + n.start;
       gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(0.22, t0 + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.04);
       gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n.dur);
 
       osc.connect(gain).connect(ctx.destination);
@@ -36,7 +35,6 @@ function playWelcomeChime() {
       osc.stop(t0 + n.dur + 0.05);
     }
 
-    // Close the context after the sound finishes to free resources.
     setTimeout(() => { ctx.close().catch(() => {}); }, 1500);
   } catch {
     // Audio may be blocked — silently ignore.
@@ -49,39 +47,23 @@ export function WelcomePopup() {
 
   useEffect(() => {
     let shown = false;
-    try { shown = sessionStorage.getItem(SESSION_KEY) === "1"; } catch { /* ignore */ }
+    try { shown = localStorage.getItem(STORAGE_KEY) === "1"; } catch { /* ignore */ }
     if (shown) return;
 
     setOpen(true);
-    // Trigger the entrance transition on the next frame.
     requestAnimationFrame(() => setVisible(true));
-
-    try { sessionStorage.setItem(SESSION_KEY, "1"); } catch { /* ignore */ }
-
-    // Most browsers block audio until first user interaction. Try immediately;
-    // if blocked, fall back to playing on the first user gesture.
-    playWelcomeChime();
-    const onFirstInteract = () => {
-      playWelcomeChime();
-      window.removeEventListener("pointerdown", onFirstInteract);
-      window.removeEventListener("keydown", onFirstInteract);
-    };
-    window.addEventListener("pointerdown", onFirstInteract, { once: true });
-    window.addEventListener("keydown", onFirstInteract, { once: true });
-
-    // Auto-close after 5 seconds.
-    const t = window.setTimeout(() => close(), 5000);
-    return () => {
-      window.clearTimeout(t);
-      window.removeEventListener("pointerdown", onFirstInteract);
-      window.removeEventListener("keydown", onFirstInteract);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    try { localStorage.setItem(STORAGE_KEY, "1"); } catch { /* ignore */ }
   }, []);
 
   const close = () => {
     setVisible(false);
     window.setTimeout(() => setOpen(false), 250);
+  };
+
+  const playAndClose = () => {
+    // Sound only plays as a direct result of the user's click — no autoplay.
+    playWelcomeChime();
+    window.setTimeout(close, 300);
   };
 
   useEffect(() => {
@@ -100,24 +82,21 @@ export function WelcomePopup() {
       }`}
       role="dialog"
       aria-modal="true"
-      aria-label="Welcome"
+      aria-label="Welcome to TREO TOOL'S"
       onClick={close}
       data-testid="welcome-popup"
     >
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        aria-hidden="true"
-      />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" aria-hidden="true" />
       <div
         onClick={(e) => e.stopPropagation()}
         className={`relative w-full max-w-md rounded-3xl border border-border bg-card shadow-2xl shadow-primary/20 overflow-hidden transition-all duration-300 ${
           visible ? "scale-100 translate-y-0" : "scale-95 translate-y-2"
         }`}
       >
-        {/* Animated brand background */}
+        {/* Decorative brand background */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/20 blur-3xl animate-pulse" />
-          <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-violet-500/20 blur-3xl animate-pulse" style={{ animationDelay: "0.6s" }} />
+          <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full bg-primary/20 blur-3xl" />
+          <div className="absolute -bottom-24 -left-24 w-72 h-72 rounded-full bg-violet-500/20 blur-3xl" />
         </div>
 
         <button
@@ -130,17 +109,14 @@ export function WelcomePopup() {
         </button>
 
         <div className="relative px-8 py-10 text-center">
-          {/* Logo with glow + entry animation */}
           <div className="mx-auto mb-5 w-24 h-24 rounded-2xl bg-gradient-to-br from-primary/30 via-violet-500/20 to-primary/10 flex items-center justify-center shadow-lg shadow-primary/30 animate-[fadeInScale_0.5s_ease-out]">
             <Logo size={64} />
           </div>
 
-          {/* Brand name */}
           <h2 className="text-3xl font-extrabold tracking-tight text-foreground">
             TREO TOOL&apos;S
           </h2>
 
-          {/* Trend / tagline pill */}
           <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/15 text-primary text-xs font-semibold">
             <Sparkles className="w-3.5 h-3.5" />
             All-in-one Student Toolkit
@@ -151,15 +127,27 @@ export function WelcomePopup() {
             <span className="text-foreground font-medium"> 100% free</span> and runs right in your browser.
           </p>
 
-          <button
-            onClick={close}
-            className="mt-6 inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-md shadow-primary/30"
-            data-testid="welcome-continue"
-          >
-            Let&apos;s go
-          </button>
+          <div className="mt-6 flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
+            <button
+              onClick={playAndClose}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors shadow-md shadow-primary/30"
+              data-testid="welcome-continue"
+              title="Play welcome chime and continue"
+            >
+              <Volume2 className="w-4 h-4" />
+              Let&apos;s go
+            </button>
+            <button
+              onClick={close}
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-card border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+              data-testid="welcome-mute"
+            >
+              <VolumeX className="w-4 h-4" />
+              Skip
+            </button>
+          </div>
 
-          <p className="mt-4 text-[10px] text-muted-foreground/70 tracking-wider uppercase">
+          <p className="mt-5 text-[10px] text-muted-foreground/70 tracking-wider uppercase">
             #1 Trending Student App
           </p>
         </div>

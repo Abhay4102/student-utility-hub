@@ -140,8 +140,16 @@ export default function Home() {
       </div>
 
       <footer className="border-t border-border mt-12 py-8">
-        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <Logo size={28} showWordmark wordmarkClassName="text-sm" />
+        <div className="max-w-5xl mx-auto px-4 flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <Logo size={28} showWordmark wordmarkClassName="text-sm" />
+            <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-muted-foreground">
+              <Link href="/about" className="hover:text-foreground transition-colors" data-testid="link-about">About</Link>
+              <Link href="/contact" className="hover:text-foreground transition-colors" data-testid="link-contact">Contact</Link>
+              <Link href="/privacy" className="hover:text-foreground transition-colors" data-testid="link-privacy">Privacy Policy</Link>
+              <Link href="/terms" className="hover:text-foreground transition-colors" data-testid="link-terms">Terms of Service</Link>
+            </nav>
+          </div>
           <p className="text-xs text-muted-foreground text-center sm:text-right">
             © {new Date().getFullYear()} TREO TOOL&apos;S · All tools run 100% in your browser
           </p>

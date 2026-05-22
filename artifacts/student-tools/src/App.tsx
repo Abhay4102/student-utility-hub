@@ -37,6 +37,10 @@ const GpaCalculator = lazy(() => import("@/pages/tools/GpaCalculator"));
 const AttendanceCalculator = lazy(() => import("@/pages/tools/AttendanceCalculator"));
 const PdfToWord = lazy(() => import("@/pages/pdf/PdfToWord"));
 const WordToPdf = lazy(() => import("@/pages/pdf/WordToPdf"));
+const About = lazy(() => import("@/pages/legal/About"));
+const Contact = lazy(() => import("@/pages/legal/Contact"));
+const Privacy = lazy(() => import("@/pages/legal/Privacy"));
+const Terms = lazy(() => import("@/pages/legal/Terms"));
 
 function PageLoader() {
   return (
@@ -78,6 +82,10 @@ function Router() {
         <Route path="/tools/attendance-calculator" component={AttendanceCalculator} />
         <Route path="/pdf/pdf-to-word" component={PdfToWord} />
         <Route path="/pdf/word-to-pdf" component={WordToPdf} />
+        <Route path="/about" component={About} />
+        <Route path="/contact" component={Contact} />
+        <Route path="/privacy" component={Privacy} />
+        <Route path="/terms" component={Terms} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>
