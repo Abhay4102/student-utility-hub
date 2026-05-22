@@ -33,7 +33,7 @@ async function renderPdfPagesToBlobs(file: File, scale: number, quality: number)
     canvas.width = viewport.width;
     canvas.height = viewport.height;
     const ctx = canvas.getContext("2d")!;
-    await page.render({ canvasContext: ctx as unknown as CanvasRenderingContext2D, viewport }).promise;
+    await page.render({ canvas, canvasContext: ctx, viewport } as unknown as Parameters<typeof page.render>[0]).promise;
     const blob = await new Promise<Blob>((res, rej) =>
       canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), "image/jpeg", quality)
     );
@@ -51,7 +51,7 @@ async function buildPdfFromPageBlobs(blobs: Blob[]): Promise<Blob> {
     page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
   }
   const pdfBytes = await pdfDoc.save();
-  return new Blob([pdfBytes], { type: "application/pdf" });
+  return new Blob([pdfBytes as BlobPart], { type: "application/pdf" });
 }
 
 export default function PhotoResizer() {
