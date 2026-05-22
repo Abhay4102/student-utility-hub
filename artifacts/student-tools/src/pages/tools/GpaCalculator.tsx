@@ -62,7 +62,7 @@ export default function GpaCalculator() {
     } else {
       const p = parseFloat(percentInput);
       if (isNaN(p) || p < 0 || p > 100) return null;
-      const cgpa = p / 9.5;
+      const cgpa = Math.min(10, p / 9.5);
       const tier = PERCENT_TO_GRADE_10.find((t) => p >= t.min) ?? PERCENT_TO_GRADE_10[PERCENT_TO_GRADE_10.length - 1];
       return { cgpa, percent: p, grade: tier.grade, gp: tier.gp };
     }

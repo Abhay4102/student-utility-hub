@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { Buffer } from "node:buffer";
 import { openai } from "@workspace/integrations-openai-ai-server";
-import { speechToText } from "@workspace/integrations-openai-ai-server/audio";
+import { speechToText, detectAudioFormat, ensureCompatibleFormat } from "@workspace/integrations-openai-ai-server/audio";
 
 const router = Router();
 
@@ -110,8 +110,21 @@ router.post("/ai/transcribe", async (req, res) => {
 
   try {
     const buffer = Buffer.from(audioBase64, "base64");
-    const fmt = (format as "wav" | "mp3" | "webm" | "ogg" | "m4a") || "webm";
-    const text = await speechToText(buffer, fmt);
+    const detected = detectAudioFormat(buffer);
+
+    let usableBuffer: Buffer = buffer;
+    let usableFormat: "wav" | "mp3" | "webm" = "webm";
+
+    if (detected === "wav" || detected === "mp3" || detected === "webm") {
+      usableFormat = detected;
+    } else {
+      // mp4/ogg/unknown — convert to wav via ffmpeg
+      const converted = await ensureCompatibleFormat(buffer);
+      usableBuffer = converted.buffer as Buffer;
+      usableFormat = converted.format;
+    }
+
+    const text = await speechToText(usableBuffer as Buffer<ArrayBuffer>, usableFormat);
     res.json({ text });
   } catch (err) {
     req.log.error(err, "Transcription error");
