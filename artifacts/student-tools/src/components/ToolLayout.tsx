@@ -1,5 +1,6 @@
 import { Link } from "wouter";
-import { ChevronRight, Home } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 interface ToolLayoutProps {
   title: string;
@@ -14,11 +15,14 @@ interface ToolLayoutProps {
 export function ToolLayout({ title, description, category, categoryHref, icon, iconBg, children }: ToolLayoutProps) {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-6" aria-label="Breadcrumb">
-        <Link href="/" className="hover:text-foreground flex items-center gap-1 transition-colors">
-          <Home className="w-3.5 h-3.5" />
-          Home
+      <div className="flex items-center justify-between mb-6">
+        <Link href="/" className="inline-flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <Logo size={24} />
+          <span className="font-bold tracking-tight text-foreground text-sm">TREO TOOL&apos;S</span>
         </Link>
+      </div>
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground mb-6" aria-label="Breadcrumb">
+        <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
         <ChevronRight className="w-3.5 h-3.5" />
         <Link href={categoryHref} className="hover:text-foreground transition-colors">{category}</Link>
         <ChevronRight className="w-3.5 h-3.5" />

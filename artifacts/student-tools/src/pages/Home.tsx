@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { Search, Calculator, FileImage, FileText, FileOutput, FileInput, Minimize2, Eraser, FilePlus, FileEdit, Lock, Unlock, Merge, Scissors, Archive, FileType2, ArrowLeftRight, FlaskConical, Atom, BookOpen, NotebookPen, GraduationCap, CalendarCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Logo } from "@/components/Logo";
 
 const tools = [
   { title: "Study Assistant", description: "Ask any academic question — text, voice or image, get clear AI answers", href: "/ai/study-assistant", icon: BookOpen, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400", category: "AI", badge: "violet" },
@@ -60,14 +61,15 @@ export default function Home() {
     <div className="min-h-screen bg-background">
       <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background border-b border-border">
         <div className="max-w-5xl mx-auto px-4 py-14 text-center">
-          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-sm font-medium px-3 py-1 rounded-full mb-4">
-            Student Tools Hub
-          </div>
-          <h1 className="text-4xl font-bold text-foreground mb-3">
-            Your all-in-one student toolkit
+          <Logo size={72} className="mx-auto mb-5 justify-center" />
+          <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight text-foreground mb-2">
+            TREO TOOL&apos;S
           </h1>
+          <p className="text-base text-primary font-medium mb-3 tracking-wide uppercase">
+            All-in-one student toolkit
+          </p>
           <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-            Convert files, edit PDFs, resize images, and more — all free, all in your browser.
+            Convert files, edit PDFs, resize images, generate notes with AI, and more — 100% free, 100% in your browser.
           </p>
           <div className="max-w-lg mx-auto relative">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -136,6 +138,15 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      <footer className="border-t border-border mt-12 py-8">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <Logo size={28} showWordmark wordmarkClassName="text-sm" />
+          <p className="text-xs text-muted-foreground text-center sm:text-right">
+            © {new Date().getFullYear()} TREO TOOL&apos;S · All tools run 100% in your browser
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

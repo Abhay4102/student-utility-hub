@@ -1,4 +1,6 @@
-# Student Tools Hub
+# TREO TOOL'S (Student Tools Hub)
+
+Brand: **TREO TOOL'S** — logo at `artifacts/student-tools/src/components/Logo.tsx` (sources `attached_assets/Generated_image_1779469447376.png`, also copied to `public/logo.png` for favicon). Logo is black and uses `dark:invert` to render white in dark mode.
 
 An all-in-one student toolkit web app — image converters, PDF tools, background remover, photo resizer, scientific calculator, and Word document maker. Everything runs client-side in the browser; no server uploads.
 
