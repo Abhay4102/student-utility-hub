@@ -41,6 +41,7 @@ const About = lazy(() => import("@/pages/legal/About"));
 const Contact = lazy(() => import("@/pages/legal/Contact"));
 const Privacy = lazy(() => import("@/pages/legal/Privacy"));
 const Terms = lazy(() => import("@/pages/legal/Terms"));
+const Copyright = lazy(() => import("@/pages/legal/Copyright"));
 
 function PageLoader() {
   return (
@@ -86,6 +87,7 @@ function Router() {
         <Route path="/contact" component={Contact} />
         <Route path="/privacy" component={Privacy} />
         <Route path="/terms" component={Terms} />
+        <Route path="/copyright" component={Copyright} />
         <Route component={NotFound} />
       </Switch>
     </Suspense>

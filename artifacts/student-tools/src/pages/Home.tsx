@@ -148,6 +148,7 @@ export default function Home() {
               <Link href="/contact" className="hover:text-foreground transition-colors" data-testid="link-contact">Contact</Link>
               <Link href="/privacy" className="hover:text-foreground transition-colors" data-testid="link-privacy">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-foreground transition-colors" data-testid="link-terms">Terms of Service</Link>
+              <Link href="/copyright" className="hover:text-foreground transition-colors" data-testid="link-copyright">Copyright</Link>
             </nav>
           </div>
           <p className="text-xs text-muted-foreground text-center sm:text-right">
