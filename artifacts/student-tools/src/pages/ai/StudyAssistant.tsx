@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   Send, Loader2, BookOpen, RotateCcw, Copy, Check, Image as ImageIcon, X,
   Mic, Square, Plus, MessageSquare, Trash2, Download, RefreshCw, StopCircle,
-  Search, Pencil, ChevronDown, ArrowDown, Sparkles, GraduationCap,
+  Search, Pencil, ChevronDown, ArrowDown, Sparkles, GraduationCap, ArrowLeft,
   Calculator as CalcIcon, FlaskConical, Atom, Beaker, Dna, Landmark, BookText,
   Languages as LangIcon, Globe2, LineChart, Code2,
 } from "lucide-react";
@@ -767,6 +767,15 @@ export default function StudyAssistant() {
             <button className="md:hidden p-1.5 rounded-md hover:bg-muted shrink-0" onClick={() => setSidebarOpen((o) => !o)} aria-label="Menu">
               <MessageSquare className="w-4 h-4" />
             </button>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-xs text-foreground shrink-0"
+              title="Back to Home"
+              data-testid="link-back-home"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Home</span>
+            </Link>
             <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
               <GraduationCap className="w-5 h-5 text-primary" />
             </div>
