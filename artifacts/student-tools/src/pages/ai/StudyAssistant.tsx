@@ -1,11 +1,16 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   Send, Loader2, BookOpen, RotateCcw, Copy, Check, Image as ImageIcon, X,
-  Mic, Square, Plus, MessageSquare, Trash2, Download, RefreshCw, StopCircle, Settings2,
+  Mic, Square, Plus, MessageSquare, Trash2, Download, RefreshCw, StopCircle,
+  Search, Pencil, ChevronDown, ArrowDown, Sparkles, GraduationCap,
+  Calculator as CalcIcon, FlaskConical, Atom, Beaker, Dna, Landmark, BookText,
+  Languages as LangIcon, Globe2, LineChart, Code2,
 } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Logo } from "@/components/Logo";
 
 type Mode = "standard" | "concise" | "detailed" | "step" | "exam" | "eli12";
 type Subject = "General" | "Math" | "Science" | "Physics" | "Chemistry" | "Biology" | "History" | "Literature" | "Languages" | "Geography" | "Economics" | "Programming";
@@ -38,6 +43,21 @@ const MODE_LABELS: Record<Mode, { label: string; hint: string }> = {
 
 const SUBJECTS: Subject[] = ["General", "Math", "Science", "Physics", "Chemistry", "Biology", "History", "Literature", "Languages", "Geography", "Economics", "Programming"];
 
+const SUBJECT_META: Record<Subject, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
+  General:     { icon: Sparkles,      color: "from-violet-500/20 to-violet-500/5 text-violet-400" },
+  Math:        { icon: CalcIcon,      color: "from-indigo-500/20 to-indigo-500/5 text-indigo-400" },
+  Science:     { icon: FlaskConical,  color: "from-emerald-500/20 to-emerald-500/5 text-emerald-400" },
+  Physics:     { icon: Atom,          color: "from-sky-500/20 to-sky-500/5 text-sky-400" },
+  Chemistry:   { icon: Beaker,        color: "from-amber-500/20 to-amber-500/5 text-amber-400" },
+  Biology:     { icon: Dna,           color: "from-green-500/20 to-green-500/5 text-green-400" },
+  History:     { icon: Landmark,      color: "from-orange-500/20 to-orange-500/5 text-orange-400" },
+  Literature:  { icon: BookText,      color: "from-rose-500/20 to-rose-500/5 text-rose-400" },
+  Languages:   { icon: LangIcon,      color: "from-pink-500/20 to-pink-500/5 text-pink-400" },
+  Geography:   { icon: Globe2,        color: "from-cyan-500/20 to-cyan-500/5 text-cyan-400" },
+  Economics:   { icon: LineChart,     color: "from-yellow-500/20 to-yellow-500/5 text-yellow-400" },
+  Programming: { icon: Code2,         color: "from-fuchsia-500/20 to-fuchsia-500/5 text-fuchsia-400" },
+};
+
 const SUGGESTIONS_BY_SUBJECT: Record<Subject, string[]> = {
   General: ["Explain photosynthesis step by step", "How does compound interest work?", "Summarise the French Revolution", "Difference between mitosis and meiosis", "What is opportunity cost?", "Explain Newton's laws"],
   Math: ["Solve 2x² − 5x − 3 = 0 step by step", "Explain the chain rule with an example", "Difference between permutation and combination", "Prove sin²θ + cos²θ = 1", "How do I integrate by parts?", "Explain logarithms simply"],
@@ -52,6 +72,15 @@ const SUGGESTIONS_BY_SUBJECT: Record<Subject, string[]> = {
   Economics: ["Explain supply and demand", "What is GDP and how is it calculated?", "Difference between fiscal and monetary policy", "Explain opportunity cost with an example", "What causes inflation?", "Comparative advantage explained"],
   Programming: ["Difference between let, var and const in JavaScript", "Explain time complexity with O(n) examples", "How does a hash map work?", "What is recursion? Give a simple example", "Explain object-oriented programming concepts", "Difference between SQL and NoSQL"],
 };
+
+const QUICK_ACTIONS: { label: string; prefix: string }[] = [
+  { label: "Solve step-by-step", prefix: "Solve this step by step: " },
+  { label: "Quiz me", prefix: "Create a 5-question quiz with answers about " },
+  { label: "Summarise", prefix: "Summarise in clear bullet points: " },
+  { label: "Define", prefix: "Define and give two examples for " },
+  { label: "Compare", prefix: "Compare and contrast: " },
+  { label: "Explain simply", prefix: "Explain like I'm 12: " },
+];
 
 const CHATS_KEY = "treo-study-chats";
 const PREFS_KEY = "treo-study-prefs";
@@ -80,6 +109,27 @@ function newChatId() { return Date.now().toString(36) + Math.random().toString(3
 function chatTitleFrom(text: string): string {
   const clean = text.replace(/\s+/g, " ").trim();
   return clean.length > 48 ? clean.slice(0, 45) + "…" : clean || "New chat";
+}
+
+function startOfDay(ts: number): number {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function groupChats(list: Chat[]): { today: Chat[]; yesterday: Chat[]; thisWeek: Chat[]; earlier: Chat[] } {
+  const now = Date.now();
+  const todayStart = startOfDay(now);
+  const yesterdayStart = todayStart - 86400000;
+  const weekStart = todayStart - 6 * 86400000;
+  const groups = { today: [] as Chat[], yesterday: [] as Chat[], thisWeek: [] as Chat[], earlier: [] as Chat[] };
+  for (const c of list) {
+    if (c.updatedAt >= todayStart) groups.today.push(c);
+    else if (c.updatedAt >= yesterdayStart) groups.yesterday.push(c);
+    else if (c.updatedAt >= weekStart) groups.thisWeek.push(c);
+    else groups.earlier.push(c);
+  }
+  return groups;
 }
 
 function renderInline(text: string): React.ReactNode {
@@ -233,11 +283,19 @@ export default function StudyAssistant() {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chatSearch, setChatSearch] = useState("");
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [subjectMenuOpen, setSubjectMenuOpen] = useState(false);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showScrollDown, setShowScrollDown] = useState(false);
 
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const abortRef = useRef<AbortController | null>(null);
@@ -264,6 +322,44 @@ export default function StudyAssistant() {
     if (current.subject && current.subject !== subject) setSubject(current.subject);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentId]);
+
+  // Track scroll position for the "scroll to latest" floating button.
+  useEffect(() => {
+    const el = scrollAreaRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      setShowScrollDown(distanceFromBottom > 200);
+    };
+    el.addEventListener("scroll", onScroll);
+    onScroll();
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [messages.length]);
+
+  // Close popovers on outside click / escape.
+  useEffect(() => {
+    if (!subjectMenuOpen && !modeMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setSubjectMenuOpen(false); setModeMenuOpen(false); }
+    };
+    const onClick = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest?.("[data-popover-root]")) { setSubjectMenuOpen(false); setModeMenuOpen(false); }
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onClick);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onClick);
+    };
+  }, [subjectMenuOpen, modeMenuOpen]);
+
+  useEffect(() => {
+    if (editingTitleId) {
+      renameInputRef.current?.focus();
+      renameInputRef.current?.select();
+    }
+  }, [editingTitleId]);
 
   const ensureChat = useCallback((firstUserText?: string): Chat => {
     if (current) return current;
@@ -476,6 +572,19 @@ export default function StudyAssistant() {
     if (currentId === id) setCurrentId("");
   };
 
+  const startRename = (chat: Chat) => {
+    setEditingTitleId(chat.id);
+    setEditingTitle(chat.title);
+  };
+
+  const commitRename = () => {
+    if (!editingTitleId) return;
+    const t = editingTitle.trim() || "New chat";
+    updateChat(editingTitleId, { title: t.length > 64 ? t.slice(0, 64) : t });
+    setEditingTitleId(null);
+    setEditingTitle("");
+  };
+
   const exportChat = () => {
     if (!current || current.messages.length === 0) return;
     const md = current.messages.map((m) => {
@@ -493,178 +602,391 @@ export default function StudyAssistant() {
     toast.success("Chat exported");
   };
 
-  const sortedChats = [...chats].sort((a, b) => b.updatedAt - a.updatedAt);
+  const applyQuickAction = (prefix: string) => {
+    setInput((prev) => prefix + prev.replace(new RegExp("^" + prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), ""));
+    textareaRef.current?.focus();
+  };
+
+  const onComposerDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes("Files")) {
+      e.preventDefault();
+      setIsDragging(true);
+    }
+  };
+  const onComposerDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget === e.target) setIsDragging(false);
+  };
+  const onComposerDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f) handleImagePick(f);
+  };
+
+  const filteredChats = useMemo(() => {
+    const q = chatSearch.trim().toLowerCase();
+    const sorted = [...chats].sort((a, b) => b.updatedAt - a.updatedAt);
+    if (!q) return sorted;
+    return sorted.filter((c) =>
+      c.title.toLowerCase().includes(q) ||
+      c.subject.toLowerCase().includes(q) ||
+      c.messages.some((m) => m.content.toLowerCase().includes(q))
+    );
+  }, [chats, chatSearch]);
+
+  const grouped = useMemo(() => groupChats(filteredChats), [filteredChats]);
   const subjectSuggestions = SUGGESTIONS_BY_SUBJECT[subject];
+  const CurrentSubjectIcon = SUBJECT_META[subject].icon;
+  const charCount = input.length;
+
+  const renderChatList = (label: string, list: Chat[]) => {
+    if (list.length === 0) return null;
+    return (
+      <div className="mb-2">
+        <p className="px-2.5 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{label}</p>
+        <ul className="space-y-0.5">
+          {list.map((c) => {
+            const M = SUBJECT_META[c.subject].icon;
+            const isEditing = editingTitleId === c.id;
+            return (
+              <li key={c.id}>
+                <div
+                  className={`group w-full text-left px-2 py-2 rounded-lg flex items-start gap-2 transition-colors cursor-pointer ${c.id === currentId ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
+                  onClick={() => { if (!isEditing) { setCurrentId(c.id); setSidebarOpen(false); } }}
+                >
+                  <div className={`w-6 h-6 shrink-0 rounded-md flex items-center justify-center bg-gradient-to-br ${SUBJECT_META[c.subject].color}`}>
+                    <M className="w-3 h-3" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {isEditing ? (
+                      <input
+                        ref={renameInputRef}
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { e.preventDefault(); commitRename(); }
+                          if (e.key === "Escape") { setEditingTitleId(null); setEditingTitle(""); }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full text-xs font-medium bg-transparent border border-primary/50 rounded px-1 py-0.5 outline-none text-foreground"
+                      />
+                    ) : (
+                      <p className="text-xs font-medium truncate">{c.title}</p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground/70 truncate">
+                      {c.subject} · {c.messages.length} msg
+                    </p>
+                  </div>
+                  {!isEditing && (
+                    <div className="flex opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); startRename(c); }}
+                        className="p-1 hover:text-foreground"
+                        aria-label="Rename chat"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteChat(c.id); }}
+                        className="p-1 hover:text-red-500"
+                        aria-label="Delete chat"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  };
 
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? "block" : "hidden"} md:block w-72 border-r border-border bg-card/30 shrink-0 flex-col h-full`}>
-        <div className="p-3 border-b border-border">
+      <aside className={`${sidebarOpen ? "flex" : "hidden"} md:flex w-72 border-r border-border bg-card/30 shrink-0 flex-col h-full`}>
+        <div className="px-3 pt-3 pb-2 border-b border-border space-y-2">
+          <Link href="/" className="flex items-center gap-2 px-1 py-1 rounded-md hover:bg-muted/40 transition-colors">
+            <Logo size={20} />
+            <span className="font-bold tracking-tight text-foreground text-xs">TREO TOOL&apos;S</span>
+          </Link>
           <Button onClick={newChat} className="w-full gap-2" size="sm" data-testid="new-chat">
             <Plus className="w-4 h-4" /> New chat
           </Button>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              type="text"
+              value={chatSearch}
+              onChange={(e) => setChatSearch(e.target.value)}
+              placeholder="Search chats"
+              className="w-full bg-background/60 border border-border rounded-md pl-8 pr-2 py-1.5 text-xs outline-none focus:border-primary/60 focus:bg-background transition-colors"
+            />
+            {chatSearch && (
+              <button
+                onClick={() => setChatSearch("")}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
         </div>
-        <div className="overflow-y-auto" style={{ height: "calc(100% - 60px)" }}>
-          {sortedChats.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-8 px-4">Your past chats will appear here.</p>
+        <div className="overflow-y-auto flex-1 px-2 py-2">
+          {filteredChats.length === 0 ? (
+            <div className="text-center py-8 px-4">
+              <MessageSquare className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
+              <p className="text-xs text-muted-foreground">
+                {chatSearch ? "No matching chats." : "Your past chats will appear here."}
+              </p>
+            </div>
           ) : (
-            <ul className="p-2 space-y-1">
-              {sortedChats.map((c) => (
-                <li key={c.id}>
-                  <button
-                    onClick={() => { setCurrentId(c.id); setSidebarOpen(false); }}
-                    className={`group w-full text-left px-2.5 py-2 rounded-lg flex items-start gap-2 transition-colors ${c.id === currentId ? "bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"}`}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium truncate">{c.title}</p>
-                      <p className="text-[10px] text-muted-foreground/70">
-                        {c.subject} · {c.messages.length} msg · {new Date(c.updatedAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); deleteChat(c.id); }}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-opacity"
-                      aria-label="Delete chat"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              {renderChatList("Today", grouped.today)}
+              {renderChatList("Yesterday", grouped.yesterday)}
+              {renderChatList("This week", grouped.thisWeek)}
+              {renderChatList("Earlier", grouped.earlier)}
+            </>
           )}
+        </div>
+        <div className="border-t border-border px-3 py-2 text-[10px] text-muted-foreground">
+          {chats.length} chat{chats.length === 1 ? "" : "s"} · stored on this device
         </div>
       </aside>
 
+      {/* Main column */}
       <div className="flex flex-col h-screen flex-1 min-w-0">
-        <div className="border-b border-border px-4 py-3 flex items-center justify-between shrink-0 gap-2">
-          <div className="flex items-center gap-3 min-w-0">
-            <button className="md:hidden p-1.5 rounded-md hover:bg-muted" onClick={() => setSidebarOpen((o) => !o)} aria-label="Menu">
+        {/* Top bar */}
+        <div className="border-b border-border px-3 sm:px-4 py-2.5 flex items-center justify-between shrink-0 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <button className="md:hidden p-1.5 rounded-md hover:bg-muted shrink-0" onClick={() => setSidebarOpen((o) => !o)} aria-label="Menu">
               <MessageSquare className="w-4 h-4" />
             </button>
-            <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-              <BookOpen className="w-5 h-5 text-primary" />
+            <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <GraduationCap className="w-5 h-5 text-primary" />
             </div>
             <div className="min-w-0">
-              <h1 className="font-semibold text-foreground text-sm truncate">{current?.title || "Study Assistant"}</h1>
-              <p className="text-xs text-muted-foreground truncate">
-                {subject} · {MODE_LABELS[mode].label} · {MODE_LABELS[mode].hint}
+              <h1 className="font-semibold text-foreground text-sm truncate" data-testid="chat-title">
+                {current?.title || "Study Assistant"}
+              </h1>
+              <p className="text-[11px] text-muted-foreground truncate">
+                Type, speak, or upload an image — get focused, exam-ready answers.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <Button variant="ghost" size="sm" onClick={() => setSettingsOpen((o) => !o)} className="gap-1.5 text-xs" data-testid="toggle-settings">
-              <Settings2 className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Mode</span>
-            </Button>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* Subject popover */}
+            <div className="relative" data-popover-root>
+              <button
+                onClick={() => { setSubjectMenuOpen((o) => !o); setModeMenuOpen(false); }}
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-xs font-medium text-foreground"
+                data-testid="subject-button"
+              >
+                <CurrentSubjectIcon className="w-3.5 h-3.5" />
+                {subject}
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </button>
+              {subjectMenuOpen && (
+                <div className="absolute right-0 mt-1 w-64 max-h-80 overflow-y-auto bg-popover border border-border rounded-xl shadow-xl p-1.5 z-30">
+                  {SUBJECTS.map((s) => {
+                    const M = SUBJECT_META[s].icon;
+                    return (
+                      <button
+                        key={s}
+                        data-testid={`subject-${s}`}
+                        onClick={() => { setSubject(s); setSubjectMenuOpen(false); }}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-left text-xs transition-colors ${subject === s ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                      >
+                        <div className={`w-6 h-6 rounded-md flex items-center justify-center bg-gradient-to-br ${SUBJECT_META[s].color}`}>
+                          <M className="w-3 h-3" />
+                        </div>
+                        <span className="font-medium">{s}</span>
+                        {subject === s && <Check className="w-3 h-3 ml-auto" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Mode popover */}
+            <div className="relative" data-popover-root>
+              <button
+                onClick={() => { setModeMenuOpen((o) => !o); setSubjectMenuOpen(false); }}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-xs font-medium text-foreground"
+                data-testid="mode-button"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                <span className="hidden sm:inline">{MODE_LABELS[mode].label}</span>
+                <ChevronDown className="w-3 h-3 opacity-60" />
+              </button>
+              {modeMenuOpen && (
+                <div className="absolute right-0 mt-1 w-64 bg-popover border border-border rounded-xl shadow-xl p-1.5 z-30">
+                  {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
+                    <button
+                      key={m}
+                      data-testid={`mode-${m}`}
+                      onClick={() => { setMode(m); setModeMenuOpen(false); }}
+                      className={`w-full flex items-start gap-2 px-2.5 py-2 rounded-lg text-left text-xs transition-colors ${mode === m ? "bg-violet-500/15 text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground">{MODE_LABELS[m].label}</p>
+                        <p className="text-[10px] text-muted-foreground/80">{MODE_LABELS[m].hint}</p>
+                      </div>
+                      {mode === m && <Check className="w-3 h-3 mt-0.5" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {current && current.messages.length > 0 && (
               <>
-                <Button variant="ghost" size="sm" onClick={exportChat} className="gap-1.5 text-xs">
-                  <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">Export</span>
+                <Button variant="ghost" size="sm" onClick={exportChat} className="gap-1.5 text-xs h-8 px-2" title="Export chat as Markdown">
+                  <Download className="w-3.5 h-3.5" /><span className="hidden lg:inline">Export</span>
                 </Button>
-                <Button variant="ghost" size="sm" onClick={newChat} className="gap-1.5 text-xs">
-                  <RotateCcw className="w-3.5 h-3.5" /><span className="hidden sm:inline">New</span>
+                <Button variant="ghost" size="sm" onClick={newChat} className="gap-1.5 text-xs h-8 px-2" title="Start a new chat">
+                  <RotateCcw className="w-3.5 h-3.5" /><span className="hidden lg:inline">New</span>
                 </Button>
               </>
             )}
           </div>
         </div>
 
-        {settingsOpen && (
-          <div className="border-b border-border bg-muted/20 px-4 py-3 shrink-0 space-y-3">
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">Subject</p>
-              <div className="flex flex-wrap gap-1.5">
-                {SUBJECTS.map((s) => (
-                  <button
-                    key={s}
-                    data-testid={`subject-${s}`}
-                    onClick={() => setSubject(s)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${subject === s ? "bg-primary text-primary-foreground" : "bg-card border border-border text-muted-foreground hover:text-foreground"}`}
-                  >{s}</button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-1.5">Answer style</p>
-              <div className="flex flex-wrap gap-1.5">
-                {(Object.keys(MODE_LABELS) as Mode[]).map((m) => (
-                  <button
-                    key={m}
-                    data-testid={`mode-${m}`}
-                    onClick={() => setMode(m)}
-                    title={MODE_LABELS[m].hint}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${mode === m ? "bg-violet-500 text-white" : "bg-card border border-border text-muted-foreground hover:text-foreground"}`}
-                  >{MODE_LABELS[m].label}</button>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-          {messages.length === 0 && !loading && (
-            <div className="flex flex-col items-center justify-center h-full gap-6 pb-10">
-              <div className="text-center space-y-2">
-                <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mx-auto">
-                  <BookOpen className="w-8 h-8 text-primary" />
+        {/* Message area */}
+        <div ref={scrollAreaRef} className="flex-1 overflow-y-auto px-3 sm:px-4 py-4 relative">
+          <div className="max-w-3xl mx-auto space-y-4">
+            {messages.length === 0 && !loading && (
+              <div className="flex flex-col items-center justify-center gap-7 py-10">
+                <div className="text-center space-y-2">
+                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/30 to-violet-500/20 flex items-center justify-center mx-auto shadow-lg shadow-primary/10">
+                    <GraduationCap className="w-8 h-8 text-primary" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-foreground">How can I help you study?</h2>
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                    Pick a subject below or jump right in. You can also speak your question or attach a problem photo.
+                  </p>
                 </div>
-                <h2 className="text-xl font-bold text-foreground">Study Assistant</h2>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  Type, speak, or upload an image — pick a subject and a style, and get clear, focused answers.
-                </p>
+
+                {/* Subject grid */}
+                <div className="w-full max-w-2xl">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 text-center">Choose a subject</p>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+                    {SUBJECTS.map((s) => {
+                      const M = SUBJECT_META[s].icon;
+                      const active = subject === s;
+                      return (
+                        <button
+                          key={s}
+                          data-testid={`subject-card-${s}`}
+                          onClick={() => setSubject(s)}
+                          className={`group flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border transition-all ${
+                            active
+                              ? "border-primary/60 bg-primary/10 shadow-sm"
+                              : "border-border bg-card hover:border-primary/30 hover:bg-muted/40"
+                          }`}
+                        >
+                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center bg-gradient-to-br ${SUBJECT_META[s].color}`}>
+                            <M className="w-4 h-4" />
+                          </div>
+                          <span className="text-[11px] font-medium text-foreground">{s}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Suggestions for current subject */}
+                <div className="w-full max-w-2xl">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wide mb-2 text-center">
+                    Try a {subject} question
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {subjectSuggestions.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => sendMessage(s)}
+                        className="text-left px-3.5 py-2.5 rounded-xl border border-border bg-card hover:bg-muted hover:border-primary/30 transition-colors text-sm text-foreground"
+                      >{s}</button>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
-                {subjectSuggestions.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => sendMessage(s)}
-                    className="text-left px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted transition-colors text-sm text-foreground"
-                  >{s}</button>
-                ))}
+            )}
+
+            {messages.map((msg, i) => (
+              <MessageBubble
+                key={i}
+                msg={msg}
+                onCopy={handleCopy}
+                onRegenerate={regenerate}
+                isLast={msg.role === "assistant" && i === messages.length - 1 && !loading}
+              />
+            ))}
+
+            {loading && streamingContent && (
+              <div className="flex gap-3 justify-start">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
+                  <BookOpen className="w-4 h-4 text-primary" />
+                </div>
+                <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-4 py-3 text-sm text-foreground">
+                  <div className="space-y-0.5">{renderMessage(streamingContent)}</div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {loading && !streamingContent && (
+              <div className="flex gap-3 justify-start">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                  <BookOpen className="w-4 h-4 text-primary" />
+                </div>
+                <div className="rounded-2xl rounded-tl-sm bg-muted px-4 py-3 flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Thinking…</span>
+                </div>
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Floating scroll-to-bottom */}
+          {showScrollDown && (
+            <button
+              onClick={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })}
+              className="absolute bottom-4 left-1/2 -translate-x-1/2 w-9 h-9 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground hover:bg-muted transition-colors"
+              aria-label="Scroll to latest"
+            >
+              <ArrowDown className="w-4 h-4" />
+            </button>
           )}
-
-          {messages.map((msg, i) => (
-            <MessageBubble
-              key={i}
-              msg={msg}
-              onCopy={handleCopy}
-              onRegenerate={regenerate}
-              isLast={msg.role === "assistant" && i === messages.length - 1 && !loading}
-            />
-          ))}
-
-          {loading && streamingContent && (
-            <div className="flex gap-3 justify-start">
-              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0 mt-1">
-                <BookOpen className="w-4 h-4 text-primary" />
-              </div>
-              <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-muted px-4 py-3 text-sm text-foreground">
-                <div className="space-y-0.5">{renderMessage(streamingContent)}</div>
-              </div>
-            </div>
-          )}
-
-          {loading && !streamingContent && (
-            <div className="flex gap-3 justify-start">
-              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                <BookOpen className="w-4 h-4 text-primary" />
-              </div>
-              <div className="rounded-2xl rounded-tl-sm bg-muted px-4 py-3">
-                <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-              </div>
-            </div>
-          )}
-
-          <div ref={bottomRef} />
         </div>
 
-        <div className="border-t border-border px-4 py-3 shrink-0">
+        {/* Composer */}
+        <div className="border-t border-border px-3 sm:px-4 py-3 shrink-0 bg-background">
           <div className="max-w-3xl mx-auto">
+            {/* Quick action chips */}
+            {!loading && (
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {QUICK_ACTIONS.map((q) => (
+                  <button
+                    key={q.label}
+                    onClick={() => applyQuickAction(q.prefix)}
+                    className="px-2.5 py-1 rounded-full border border-border bg-card text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
+                    title={`Insert "${q.prefix}"`}
+                  >
+                    {q.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {pendingImage && (
               <div className="mb-2 relative inline-block">
                 <img src={pendingImage.dataUrl} alt="preview" className="h-20 rounded-lg border border-border" />
@@ -675,18 +997,31 @@ export default function StudyAssistant() {
                 ><X className="w-3 h-3" /></button>
               </div>
             )}
-            <div className="flex gap-2 items-end">
+
+            <div
+              onDragOver={onComposerDragOver}
+              onDragLeave={onComposerDragLeave}
+              onDrop={onComposerDrop}
+              className={`relative rounded-2xl border bg-card/60 p-2 flex gap-2 items-end transition-colors ${
+                isDragging ? "border-primary border-dashed bg-primary/5" : "border-border"
+              }`}
+            >
+              {isDragging && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none rounded-2xl bg-primary/5">
+                  <p className="text-xs font-medium text-primary">Drop image to attach</p>
+                </div>
+              )}
               <input
                 ref={fileInputRef} type="file" accept="image/*" className="hidden"
                 onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImagePick(f); e.target.value = ""; }}
               />
-              <Button variant="outline" size="icon" onClick={() => fileInputRef.current?.click()}
-                disabled={loading || recording} className="shrink-0 h-11 w-11" title="Attach an image">
+              <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()}
+                disabled={loading || recording} className="shrink-0 h-10 w-10 rounded-xl" title="Attach an image">
                 <ImageIcon className="w-4 h-4" />
               </Button>
-              <Button variant={recording ? "destructive" : "outline"} size="icon"
+              <Button variant={recording ? "destructive" : "ghost"} size="icon"
                 onClick={recording ? stopRecording : startRecording}
-                disabled={loading || transcribing} className="shrink-0 h-11 w-11"
+                disabled={loading || transcribing} className="shrink-0 h-10 w-10 rounded-xl"
                 title={recording ? "Stop recording" : "Record voice message"}>
                 {transcribing ? <Loader2 className="w-4 h-4 animate-spin" />
                   : recording ? <Square className="w-4 h-4 fill-current" />
@@ -698,25 +1033,32 @@ export default function StudyAssistant() {
                 placeholder={recording ? "Recording… tap stop when done"
                   : transcribing ? "Transcribing…"
                   : `Ask anything about ${subject === "General" ? "your studies" : subject}…`}
-                className="resize-none min-h-[44px] max-h-[160px] text-sm"
+                className="resize-none min-h-[44px] max-h-[160px] text-sm border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 shadow-none"
                 rows={1} disabled={loading || recording || transcribing}
               />
               {loading ? (
                 <Button onClick={stopGenerating} size="icon" variant="destructive"
-                  className="shrink-0 h-11 w-11" title="Stop generating">
+                  className="shrink-0 h-10 w-10 rounded-xl" title="Stop generating">
                   <StopCircle className="w-4 h-4" />
                 </Button>
               ) : (
                 <Button onClick={() => sendMessage()}
                   disabled={(!input.trim() && !pendingImage) || recording || transcribing}
-                  size="icon" className="shrink-0 h-11 w-11">
+                  size="icon" className="shrink-0 h-10 w-10 rounded-xl">
                   <Send className="w-4 h-4" />
                 </Button>
               )}
             </div>
-            <p className="text-center text-xs text-muted-foreground mt-2">
-              {recording ? "🔴 Recording in progress…" : "TREO TOOL'S · For academic study purposes only"}
-            </p>
+
+            <div className="flex items-center justify-between mt-2 px-1">
+              <p className="text-[10px] text-muted-foreground">
+                {recording ? "🔴 Recording in progress…"
+                  : <>Press <kbd className="px-1 py-0.5 rounded bg-muted text-foreground text-[10px]">Enter</kbd> to send · <kbd className="px-1 py-0.5 rounded bg-muted text-foreground text-[10px]">Shift+Enter</kbd> for new line</>}
+              </p>
+              {charCount > 0 && (
+                <p className="text-[10px] text-muted-foreground tabular-nums">{charCount} char{charCount === 1 ? "" : "s"}</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
