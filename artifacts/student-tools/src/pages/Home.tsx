@@ -5,8 +5,7 @@ import {
   FilePlus, FileEdit, Lock, Unlock, Merge, Scissors, Archive, FileType2, ArrowLeftRight,
   FlaskConical, Atom, BookOpen, NotebookPen, GraduationCap, CalendarCheck,
   Sparkles, Image as ImageIcon, FileStack, Wrench, Microscope, FileSignature,
-  ShieldCheck, Zap, MousePointerClick, Globe, ArrowRight, TrendingUp,
-  Star, Clock, Command, X,
+  ArrowRight, Star, Clock, Command, X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/Logo";
@@ -243,23 +242,14 @@ export default function Home() {
           />
         </div>
 
-        <div className="max-w-6xl mx-auto px-4 pt-14 pb-16 sm:pt-20 sm:pb-20 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary mb-6">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>#1 free student toolkit · {tools.length} tools, zero uploads</span>
-          </div>
-
-          <Logo size={64} className="mx-auto mb-5 justify-center" />
+        <div className="max-w-6xl mx-auto px-4 pt-16 pb-14 sm:pt-24 sm:pb-16 text-center">
+          <Logo size={80} className="mx-auto mb-6 justify-center" />
 
           <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight text-foreground mb-3">
             TREO TOOL&apos;S
           </h1>
-          <p className="text-base text-primary font-medium mb-4 tracking-wider uppercase">
-            All-in-one student toolkit
-          </p>
-          <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-            Convert files, edit PDFs, resize images, ask AI study questions and more.{" "}
-            <span className="text-foreground font-semibold">100% free</span>, runs entirely in your browser.
+          <p className="text-base sm:text-lg text-muted-foreground mb-10 max-w-xl mx-auto">
+            Student toolkit for files, PDFs, images and AI study help.
           </p>
 
           <div className="max-w-xl mx-auto relative">
@@ -267,7 +257,7 @@ export default function Home() {
             <Input
               ref={searchRef}
               data-testid="search-tools"
-              placeholder={`Search ${tools.length} tools — try "pdf", "remove background", "gpa"…`}
+              placeholder="Search tools…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-12 pr-24 h-14 text-base shadow-lg shadow-primary/5 border-2 focus-visible:ring-primary/30"
@@ -276,42 +266,6 @@ export default function Home() {
               Press <span className="font-bold">/</span>
             </kbd>
           </div>
-
-          <div className="mt-10 grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
-            {[
-              { label: "Tools", value: tools.length.toString() },
-              { label: "Categories", value: (categories.length - 1).toString() },
-              { label: "Uploads", value: "0" },
-              { label: "Free", value: "100%" },
-            ].map((s) => (
-              <div key={s.label} className="rounded-xl border border-border bg-card/60 backdrop-blur-sm px-3 py-3">
-                <div className="text-2xl font-extrabold text-foreground">{s.value}</div>
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ─────────────────────── WHY US STRIP ─────────────────────── */}
-      <div className="border-b border-border bg-muted/30">
-        <div className="max-w-6xl mx-auto px-4 py-5 grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { icon: ShieldCheck, title: "100% Private", desc: "Files never leave your device" },
-            { icon: Zap, title: "Instant", desc: "No queues, no waiting rooms" },
-            { icon: MousePointerClick, title: "No sign-up", desc: "Just open and use" },
-            { icon: Globe, title: "Works offline", desc: "Once the page loads, you're set" },
-          ].map((f) => (
-            <div key={f.title} className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                <f.icon className="w-[18px] h-[18px]" />
-              </div>
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-foreground">{f.title}</div>
-                <div className="text-xs text-muted-foreground leading-snug">{f.desc}</div>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -527,11 +481,10 @@ export default function Home() {
               <Link href="/copyright" className="hover:text-foreground transition-colors" data-testid="link-copyright">Copyright</Link>
             </nav>
           </div>
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-4 border-t border-border">
-            <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} TREO TOOL&apos;S · All tools run 100% in your browser
+          <div className="pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground text-center">
+              © {new Date().getFullYear()} TREO TOOL&apos;S
             </p>
-            <p className="text-xs text-muted-foreground">Made with care for students worldwide</p>
           </div>
         </div>
       </footer>
