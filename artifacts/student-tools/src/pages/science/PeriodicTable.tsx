@@ -3,7 +3,7 @@ import { ToolLayout } from "@/components/ToolLayout";
 import { Input } from "@/components/ui/input";
 import { FlaskConical, X, Search, Layers, Thermometer, Atom, Info, ArrowRight, ArrowLeft, ArrowDown, ArrowUp, TrendingUp } from "lucide-react";
 import {
-  ELEMENTS, CATEGORY_STYLES, getBlock, getShells, xCol,
+  ELEMENTS, CATEGORY_STYLES, getBlock, getShells,
   type ElementData, type Block, type Phase,
 } from "./periodicData";
 import { BohrDiagram } from "./BohrDiagram";
@@ -106,7 +106,7 @@ export default function PeriodicTable() {
 
   const byPos = useMemo(() => {
     const m: Record<string, ElementData> = {};
-    ELEMENTS.forEach((el) => { m[`${el.period}-${xCol(el)}`] = el; });
+    ELEMENTS.forEach((el) => { m[`${el.period}-${el.group}`] = el; });
     return m;
   }, []);
 
@@ -138,7 +138,7 @@ export default function PeriodicTable() {
   }, []);
 
   const rows = [1, 2, 3, 4, 5, 6, 7];
-  const cols = Array.from({ length: 32 }, (_, i) => i + 1);
+  const cols = Array.from({ length: 18 }, (_, i) => i + 1);
 
   return (
     <ToolLayout
@@ -221,17 +221,32 @@ export default function PeriodicTable() {
           )}
         </div>
 
-        {/* Table — full extended (long-form) layout: every element in its true place, no range placeholders. */}
-        <p className="text-[11px] text-muted-foreground sm:hidden">
-          ← Swipe horizontally to see all 32 columns →
-        </p>
+        {/* Table */}
         <div className="overflow-x-auto pb-2 -mx-2 px-2">
-          <div style={{ minWidth: 1280 }}>
-            <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(32, minmax(0, 1fr))" }}>
+          <div style={{ minWidth: 720 }}>
+            <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(18, minmax(0, 1fr))" }}>
               {rows.map((period) =>
-                cols.map((col) => {
-                  const el = byPos[`${period}-${col}`];
-                  if (!el) return <div key={`${period}-${col}`} />;
+                cols.map((group) => {
+                  const el = byPos[`${period}-${group}`];
+                  if (!el) {
+                    if (period === 6 && group === 3) {
+                      return (
+                        <div key={`${period}-${group}`}
+                          className="w-full aspect-square flex flex-col items-center justify-center rounded-md border border-pink-300 dark:border-pink-500/30 bg-pink-100/60 dark:bg-pink-950/30 text-pink-700 dark:text-pink-300 text-[0.42rem] font-bold leading-tight text-center">
+                          57-71<br/>La-Lu
+                        </div>
+                      );
+                    }
+                    if (period === 7 && group === 3) {
+                      return (
+                        <div key={`${period}-${group}`}
+                          className="w-full aspect-square flex flex-col items-center justify-center rounded-md border border-fuchsia-300 dark:border-fuchsia-500/30 bg-fuchsia-100/60 dark:bg-fuchsia-950/30 text-fuchsia-700 dark:text-fuchsia-300 text-[0.42rem] font-bold leading-tight text-center">
+                          89-103<br/>Ac-Lr
+                        </div>
+                      );
+                    }
+                    return <div key={`${period}-${group}`} />;
+                  }
                   return (
                     <ElementCell
                       key={el.number}
@@ -245,6 +260,31 @@ export default function PeriodicTable() {
                   );
                 }),
               )}
+            </div>
+
+            {/* Lanthanide + Actinide rows */}
+            <div className="mt-2 grid gap-1" style={{ gridTemplateColumns: "repeat(18, minmax(0, 1fr))" }}>
+              <div className="col-span-3" />
+              {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((group) => {
+                const lant = byPos[`9-${group}`];
+                const act = byPos[`10-${group}`];
+                return (
+                  <div key={group} className="flex flex-col gap-1">
+                    {lant && (
+                      <ElementCell el={lant} onClick={setSelected}
+                        isMatch={selected?.number === lant.number || (anyFilter && matches.has(lant.number))}
+                        dim={anyFilter && !matches.has(lant.number)}
+                        view={view} ranges={ranges} />
+                    )}
+                    {act && (
+                      <ElementCell el={act} onClick={setSelected}
+                        isMatch={selected?.number === act.number || (anyFilter && matches.has(act.number))}
+                        dim={anyFilter && !matches.has(act.number)}
+                        view={view} ranges={ranges} />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -313,63 +353,57 @@ type TrendDir = "left" | "right" | "up" | "down";
 
 interface Trend {
   name: string;
-  hindi: string;
   groupDir: TrendDir;   // direction along a group (vertical)
   periodDir: TrendDir;  // direction along a period (horizontal)
   reason: string;
   example: string;
-  accent: string;       // tailwind color classes for header
+  accent: string;
   ring: string;
 }
 
 const TRENDS: Trend[] = [
   {
     name: "Atomic Radius",
-    hindi: "परमाणु त्रिज्या",
     groupDir: "down",
     periodDir: "left",
-    reason: "Group me neeche jaate hain to naya shell add hota hai — size badhti. Period me left → right jaate hain to nuclear charge badhti par shell wahi rehti, electrons andar khichte — size ghatti.",
-    example: "Cs sabse bada, He sabse chhota.",
+    reason: "Moving down a group adds a new electron shell, so the atom grows larger. Moving left to right across a period, nuclear charge increases while electrons stay in the same shell, pulling them in tighter and shrinking the atom.",
+    example: "Caesium (Cs) is the largest stable atom; Helium (He) is the smallest.",
     accent: "bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-200 border-sky-300 dark:border-sky-700",
     ring: "ring-sky-400",
   },
   {
     name: "Ionization Energy",
-    hindi: "आयनन ऊर्जा (I.E.)",
     groupDir: "up",
     periodDir: "right",
-    reason: "Outer electron nikalne ke liye chahiye energy. Group me upar jaate electron nucleus ke kareeb — IE badhti. Period me right jaate effective nuclear charge badhta — electron tightly held — IE badhti.",
-    example: "Helium sabse zyada (~2372 kJ/mol), Caesium sabse kam.",
+    reason: "The energy needed to remove the outermost electron. It increases up a group (outer electron is closer to the nucleus and held more strongly) and increases left to right across a period (rising effective nuclear charge with no extra shell).",
+    example: "Helium has the highest (~2372 kJ/mol); Caesium and Francium are the lowest.",
     accent: "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-700",
     ring: "ring-rose-400",
   },
   {
     name: "Electronegativity",
-    hindi: "विद्युतऋणात्मकता",
     groupDir: "up",
     periodDir: "right",
-    reason: "Bond me electrons khichne ki capacity. Group me upar aur period me right jaate badhti — same reason as IE (chhota size + zyada nuclear pull).",
-    example: "Fluorine sabse zyada (3.98 Pauling), Francium sabse kam (~0.7).",
+    reason: "How strongly an atom attracts bonded electrons. It increases up a group and across a period for the same reasons as ionization energy: smaller size and greater effective nuclear charge.",
+    example: "Fluorine is the highest (3.98 on the Pauling scale); Francium is the lowest (~0.7).",
     accent: "bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-200 border-violet-300 dark:border-violet-700",
     ring: "ring-violet-400",
   },
   {
     name: "Electron Affinity",
-    hindi: "इलेक्ट्रॉन बंधुता",
     groupDir: "up",
     periodDir: "right",
-    reason: "Ek aur electron lene par release hone wali energy. Halogens (Group 17) sabse high — kyunki ek electron lekar noble-gas configuration mil jata. Period me right + Group me upar zyada.",
-    example: "Chlorine highest (~349 kJ/mol).",
+    reason: "The energy released when a neutral atom gains an electron. It generally increases across a period and up a group. Halogens have the highest values because gaining one electron completes a noble-gas configuration.",
+    example: "Chlorine has the highest electron affinity (~349 kJ/mol).",
     accent: "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700",
     ring: "ring-amber-400",
   },
   {
     name: "Metallic Character",
-    hindi: "धात्विक गुण",
     groupDir: "down",
     periodDir: "left",
-    reason: "Electron easily lose karne ki tendency = metallic nature. Group me neeche aur period me left jaate badhti. Right-top corner non-metals, left-bottom corner sabse zyada metallic.",
-    example: "Caesium / Francium sabse zyada metallic, Fluorine sabse kam.",
+    reason: "The tendency of an atom to lose electrons and form positive ions. It increases down a group and from right to left across a period. The top-right corner is the most non-metallic; the bottom-left is the most metallic.",
+    example: "Caesium and Francium are the most metallic elements; Fluorine is the least.",
     accent: "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700",
     ring: "ring-emerald-400",
   },
@@ -417,8 +451,8 @@ function PeriodicTrends() {
           <TrendingUp className="w-4 h-4" />
         </div>
         <div>
-          <h3 className="font-bold text-sm sm:text-base">Periodic Trends — कैसे बदलती हैं properties</h3>
-          <p className="text-[11px] sm:text-xs text-muted-foreground">Arrows direction of <b>increase</b> dikhate hain. Ulta direction me ghatti hai.</p>
+          <h3 className="font-bold text-sm sm:text-base">Periodic Trends — how properties change</h3>
+          <p className="text-[11px] sm:text-xs text-muted-foreground">Arrows show the direction of <b>increase</b>. The property decreases in the opposite direction.</p>
         </div>
       </header>
 
@@ -430,23 +464,22 @@ function PeriodicTrends() {
           >
             <div>
               <h4 className="font-bold text-sm sm:text-base leading-tight">{t.name}</h4>
-              <p className="text-[11px] opacity-80">{t.hindi}</p>
             </div>
 
             <MiniGrid groupDir={t.groupDir} periodDir={t.periodDir} />
 
             <div className="grid grid-cols-2 gap-1.5 text-[10px] sm:text-[11px]">
               <div className="rounded-md bg-background/60 border border-border/60 px-2 py-1.5 flex items-center justify-between gap-1">
-                <span className="opacity-70 font-semibold">Period →</span>
+                <span className="opacity-70 font-semibold">Across period</span>
                 <span className="flex items-center gap-0.5 font-bold">
-                  {t.periodDir === "right" ? "Badhti" : "Ghatti"}
+                  {t.periodDir === "right" ? "Increases" : "Decreases"}
                   <TrendIcon dir={t.periodDir} />
                 </span>
               </div>
               <div className="rounded-md bg-background/60 border border-border/60 px-2 py-1.5 flex items-center justify-between gap-1">
-                <span className="opacity-70 font-semibold">Group ↓</span>
+                <span className="opacity-70 font-semibold">Down group</span>
                 <span className="flex items-center gap-0.5 font-bold">
-                  {t.groupDir === "down" ? "Badhti" : "Ghatti"}
+                  {t.groupDir === "down" ? "Increases" : "Decreases"}
                   <TrendIcon dir={t.groupDir} />
                 </span>
               </div>
@@ -465,13 +498,14 @@ function PeriodicTrends() {
       {/* Quick cheat-sheet diagonal map */}
       <div className="mx-4 mb-4 rounded-xl border border-dashed border-border p-3 sm:p-4 bg-muted/30">
         <h4 className="text-xs sm:text-sm font-bold mb-2 flex items-center gap-1.5">
-          <Info className="w-3.5 h-3.5" /> Quick rule (yaad rakhne ka tareeka)
+          <Info className="w-3.5 h-3.5" /> Quick reference
         </h4>
         <ul className="text-[11px] sm:text-xs space-y-1 text-muted-foreground leading-relaxed">
-          <li><b className="text-foreground">Right-Top corner</b> (F, Cl, O) → IE, electronegativity, electron affinity sabse <b>HIGH</b>; size sabse <b>SMALL</b>.</li>
-          <li><b className="text-foreground">Left-Bottom corner</b> (Cs, Fr) → atomic radius aur metallic character sabse <b>HIGH</b>; IE aur electronegativity sabse <b>LOW</b>.</li>
-          <li>Noble gases ki ionisation energy <b>highest in their period</b> hoti hai — fully filled stable shell jo todna mushkil.</li>
-          <li>Exception: Group 2 → 13 me IE thodi <b>ghatti</b> hai (B &lt; Be) kyunki p-orbital start hota hai (energy higher hone par bhi shielding zyada).</li>
+          <li><b className="text-foreground">Top-right corner</b> (F, Cl, O) — highest ionization energy, electronegativity and electron affinity; smallest atomic radius.</li>
+          <li><b className="text-foreground">Bottom-left corner</b> (Cs, Fr) — largest atomic radius and most metallic; lowest ionization energy and electronegativity.</li>
+          <li>Noble gases have the highest ionization energy in their period due to a fully filled, stable electron shell.</li>
+          <li>Exception: ionization energy dips slightly from Group 2 to Group 13 (B is lower than Be) because the first electron of the p-orbital is easier to remove.</li>
+          <li>Exception: ionization energy dips slightly from Group 15 to Group 16 (O is lower than N) because pairing in the p-orbital introduces electron-electron repulsion.</li>
         </ul>
       </div>
     </section>
@@ -529,15 +563,8 @@ function ElementDetail({ el, onClose }: { el: ElementData; onClose: () => void }
             </div>
           )}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
-            <Detail
-              label="Group"
-              value={
-                el.category === "lanthanide" ? "Lanthanides (f-block)" :
-                el.category === "actinide"   ? "Actinides (f-block)" :
-                String(el.group)
-              }
-            />
-            <Detail label="Period" value={String(el.period)} />
+            <Detail label="Group" value={el.period <= 8 ? String(el.group) : el.category === "lanthanide" ? "Lanthanides" : "Actinides"} />
+            <Detail label="Period" value={String(el.period <= 8 ? el.period : el.period === 9 ? 6 : 7)} />
             <Detail label="Block" value={`${block.toUpperCase()}-block`} />
             <Detail label="Phase (25°C)" value={cap(el.phase)} />
             <Detail label="Atomic mass" value={`${el.mass} u`} />
