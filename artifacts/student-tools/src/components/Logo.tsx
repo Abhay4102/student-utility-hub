@@ -32,45 +32,44 @@ function LogoMark({ size }: { size: number }) {
       style={{ flexShrink: 0 }}
     >
       <defs>
-        <linearGradient id="treoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#6366f1" />
-          <stop offset="55%" stopColor="#8b5cf6" />
-          <stop offset="100%" stopColor="#ec4899" />
-        </linearGradient>
-        <linearGradient id="treoShine" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.25" />
-          <stop offset="60%" stopColor="#ffffff" stopOpacity="0" />
+        <linearGradient id="treoBg" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#0f1a2e" />
+          <stop offset="100%" stopColor="#070d1c" />
         </linearGradient>
       </defs>
 
-      {/* Rounded badge */}
-      <rect x="4" y="4" width="92" height="92" rx="24" fill="url(#treoGrad)" />
-      {/* Top shine overlay */}
-      <rect x="4" y="4" width="92" height="92" rx="24" fill="url(#treoShine)" />
+      {/* Dark navy badge */}
+      <rect x="2" y="2" width="96" height="96" rx="16" fill="url(#treoBg)" />
+      <rect x="2" y="2" width="96" height="96" rx="16" fill="none" stroke="#fbbf24" strokeWidth="0.6" strokeOpacity="0.18" />
 
-      {/* Bold modern "T" */}
-      <path
-        d="M26 30
-           h48
-           a3 3 0 0 1 3 3
-           v7
-           a3 3 0 0 1 -3 3
-           h-16
-           v30
-           a3 3 0 0 1 -3 3
-           h-9
-           a3 3 0 0 1 -3 -3
-           v-30
-           h-17
-           a3 3 0 0 1 -3 -3
-           v-7
-           a3 3 0 0 1 3 -3
-           z"
-        fill="#ffffff"
-      />
-
-      {/* Triangle accent (hints at TREO = three) */}
-      <path d="M68 64 L82 64 L75 78 Z" fill="#ffffff" fillOpacity="0.85" />
+      {/* Nested flame-colored T (3 concentric bands with dark gaps) */}
+      <g strokeLinecap="round" fill="none">
+        {/* OUTER yellow band */}
+        <g stroke="#fbbf24" strokeWidth="14">
+          <line x1="22" y1="30" x2="78" y2="30" />
+          <line x1="50" y1="30" x2="50" y2="80" />
+        </g>
+        {/* dark gap */}
+        <g stroke="#0a1020" strokeWidth="10">
+          <line x1="22" y1="30" x2="78" y2="30" />
+          <line x1="50" y1="30" x2="50" y2="80" />
+        </g>
+        {/* MIDDLE orange band */}
+        <g stroke="#f97316" strokeWidth="7.5">
+          <line x1="22" y1="30" x2="78" y2="30" />
+          <line x1="50" y1="30" x2="50" y2="80" />
+        </g>
+        {/* dark gap */}
+        <g stroke="#0a1020" strokeWidth="4">
+          <line x1="22" y1="30" x2="78" y2="30" />
+          <line x1="50" y1="30" x2="50" y2="80" />
+        </g>
+        {/* INNER red core */}
+        <g stroke="#dc2626" strokeWidth="2.5">
+          <line x1="22" y1="30" x2="78" y2="30" />
+          <line x1="50" y1="30" x2="50" y2="80" />
+        </g>
+      </g>
     </svg>
   );
 }

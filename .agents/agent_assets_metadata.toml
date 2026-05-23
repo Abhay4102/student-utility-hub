@@ -90,3 +90,9 @@ id = "tlsZM8Xx9dX6bHxhFRKc4"
 uri = "file://attached_assets/logo-options/P4-orbit.png"
 type = "image"
 title = "P4 — Orbit (3 orbital arcs around glowing core)"
+
+[[outputs]]
+id = "x1-KE16MgNnDpfggY3u5p"
+uri = "file://attached_assets/logo-options/Z-flame-t.png"
+type = "image"
+title = "Naya Flame T Logo — Live on Site"
