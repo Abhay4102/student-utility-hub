@@ -108,3 +108,9 @@ id = "56wwC0JtJ1Obm1PquV9M5"
 uri = "file://attached_assets/logo-options/FINAL-prism.png"
 type = "image"
 title = "FINAL — Prism Logo Live on Site"
+
+[[outputs]]
+id = "5IMWRZtQulcCK90pUOgFP"
+uri = "file://attached_assets/logo-options/FINAL-prism-only.png"
+type = "image"
+title = "Naya Pure Prism — bina badge, bigger"
