@@ -32,19 +32,39 @@ function decodeHtmlEntities(s: string): string {
     .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(parseInt(d, 10)));
 }
 
+const YT_COMMON_HEADERS = {
+  "User-Agent": YT_UA,
+  "Accept-Language": "en-US,en;q=0.9",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Cookie": "CONSENT=YES+cb.20210328-17-p0.en+FX+000; SOCS=CAI",
+} as const;
+
 async function fetchYoutubeMeta(videoId: string): Promise<YtMeta> {
-  const url = `https://www.youtube.com/watch?v=${videoId}&hl=en`;
-  const resp = await fetch(url, {
-    headers: {
-      "User-Agent": YT_UA,
-      "Accept-Language": "en-US,en;q=0.9",
-    },
-  });
-  if (!resp.ok) throw new Error(`YouTube page returned ${resp.status}`);
-  const html = await resp.text();
+  const urls = [
+    `https://www.youtube.com/watch?v=${videoId}&hl=en&has_verified=1&bpctr=9999999999`,
+    `https://m.youtube.com/watch?v=${videoId}&hl=en`,
+  ];
+
+  let html = "";
+  let lastErr: unknown = null;
+  for (const url of urls) {
+    try {
+      const resp = await fetch(url, { headers: YT_COMMON_HEADERS });
+      if (!resp.ok) {
+        lastErr = new Error(`YouTube page returned ${resp.status}`);
+        continue;
+      }
+      html = await resp.text();
+      if (html.includes("ytInitialPlayerResponse")) break;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  if (!html) throw (lastErr as Error) || new Error("Could not fetch YouTube page");
 
   const match =
     html.match(/var ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?\})\s*;\s*(?:var|<\/script>)/) ||
+    html.match(/ytInitialPlayerResponse"\s*\)\s*\|\|\s*(\{[\s\S]+?\})\s*;/) ||
     html.match(/ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?\})\s*;/);
   if (!match) throw new Error("Could not find player response");
 
@@ -97,6 +117,47 @@ function pickBestCaptionTrack(tracks: YtCaptionTrack[], preferredLangs: string[]
   return anyManual || tracks[0];
 }
 
+async function fetchYoutubeMetaInnertube(videoId: string): Promise<YtMeta> {
+  const resp = await fetch(
+    "https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "User-Agent": "com.google.android.youtube/19.09.37 (Linux; U; Android 14) gzip",
+        "X-YouTube-Client-Name": "3",
+        "X-YouTube-Client-Version": "19.09.37",
+      },
+      body: JSON.stringify({
+        context: {
+          client: {
+            clientName: "ANDROID",
+            clientVersion: "19.09.37",
+            androidSdkVersion: 34,
+            hl: "en",
+            gl: "US",
+          },
+        },
+        videoId,
+      }),
+    },
+  );
+  if (!resp.ok) throw new Error(`InnerTube returned ${resp.status}`);
+  const data = (await resp.json()) as Record<string, unknown>;
+  const videoDetails = (data.videoDetails as Record<string, unknown> | undefined) || {};
+  const captions = (data.captions as Record<string, unknown> | undefined) || {};
+  const tracklist = (captions.playerCaptionsTracklistRenderer as Record<string, unknown> | undefined) || {};
+  const captionTracks = (tracklist.captionTracks as YtCaptionTrack[] | undefined) || [];
+
+  return {
+    title: typeof videoDetails.title === "string" ? videoDetails.title : undefined,
+    description: typeof videoDetails.shortDescription === "string" ? videoDetails.shortDescription : undefined,
+    author: typeof videoDetails.author === "string" ? videoDetails.author : undefined,
+    lengthSeconds: typeof videoDetails.lengthSeconds === "string" ? videoDetails.lengthSeconds : undefined,
+    captionTracks,
+  };
+}
+
 async function getYoutubeTranscriptRobust(videoId: string): Promise<{
   transcript: string;
   title?: string;
@@ -105,9 +166,22 @@ async function getYoutubeTranscriptRobust(videoId: string): Promise<{
 }> {
   let meta: YtMeta | null = null;
   try {
-    meta = await fetchYoutubeMeta(videoId);
+    meta = await fetchYoutubeMetaInnertube(videoId);
   } catch {
-    /* fall through, try library */
+    /* try web scrape */
+  }
+  if (!meta || (meta.captionTracks.length === 0 && !meta.description)) {
+    try {
+      const webMeta = await fetchYoutubeMeta(videoId);
+      if (!meta) {
+        meta = webMeta;
+      } else {
+        if (webMeta.captionTracks.length > 0) meta.captionTracks = webMeta.captionTracks;
+        if (!meta.description && webMeta.description) meta.description = webMeta.description;
+        if (!meta.title && webMeta.title) meta.title = webMeta.title;
+        if (!meta.author && webMeta.author) meta.author = webMeta.author;
+      }
+    } catch { /* ignore */ }
   }
 
   if (meta && meta.captionTracks.length > 0) {
