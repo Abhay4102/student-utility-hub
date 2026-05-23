@@ -4,39 +4,66 @@ import { Logo } from "@/components/Logo";
 const SESSION_KEY = "treo-splash-shown";
 const DURATION_MS = 2000;
 
-function playStartupTone() {
+let sharedCtx: AudioContext | null = null;
+let tonePlayed = false;
+
+function getCtx(): AudioContext | null {
+  if (sharedCtx) return sharedCtx;
+  const AC: typeof AudioContext | undefined =
+    window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AC) return null;
   try {
-    const AC: typeof AudioContext | undefined =
-      window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return;
-    const ctx = new AC();
-    const now = ctx.currentTime;
-
-    // Two soft, warm notes that resolve over ~2 seconds — gentle "startup" tone.
-    const notes = [
-      { freq: 523.25, start: 0.0, dur: 1.2 }, // C5
-      { freq: 783.99, start: 0.5, dur: 1.4 }, // G5
-    ];
-
-    for (const n of notes) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = n.freq;
-
-      const t0 = now + n.start;
-      gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.exponentialRampToValueAtTime(0.16, t0 + 0.08);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n.dur);
-
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(t0);
-      osc.stop(t0 + n.dur + 0.05);
-    }
-
-    setTimeout(() => { ctx.close().catch(() => {}); }, 2500);
+    sharedCtx = new AC();
+    return sharedCtx;
   } catch {
-    // Audio may be blocked by the browser before any user interaction — ignore.
+    return null;
+  }
+}
+
+function scheduleNotes(ctx: AudioContext) {
+  const now = ctx.currentTime;
+  const notes = [
+    { freq: 523.25, start: 0.0, dur: 1.2 }, // C5
+    { freq: 783.99, start: 0.5, dur: 1.4 }, // G5
+  ];
+
+  for (const n of notes) {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = n.freq;
+
+    const t0 = now + n.start;
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.16, t0 + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n.dur);
+
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + n.dur + 0.05);
+  }
+}
+
+function playStartupTone() {
+  if (tonePlayed) return;
+  const ctx = getCtx();
+  if (!ctx) return;
+
+  const fire = () => {
+    if (tonePlayed) return;
+    if (ctx.state !== "running") return;
+    tonePlayed = true;
+    try {
+      scheduleNotes(ctx);
+    } catch {
+      tonePlayed = false;
+    }
+  };
+
+  if (ctx.state === "suspended") {
+    ctx.resume().then(fire).catch(() => { /* still blocked, wait for interaction */ });
+  } else {
+    fire();
   }
 }
 
