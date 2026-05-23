@@ -42,7 +42,6 @@ const PdfToWord = lazy(() => import("@/pages/pdf/PdfToWord"));
 const WordToPdf = lazy(() => import("@/pages/pdf/WordToPdf"));
 const Timer = lazy(() => import("@/pages/tools/Timer"));
 const QrGenerator = lazy(() => import("@/pages/tools/QrGenerator"));
-const YoutubeSummarizer = lazy(() => import("@/pages/ai/YoutubeSummarizer"));
 const About = lazy(() => import("@/pages/legal/About"));
 const Contact = lazy(() => import("@/pages/legal/Contact"));
 const Privacy = lazy(() => import("@/pages/legal/Privacy"));
@@ -134,7 +133,6 @@ function Router() {
         <Route path="/pdf/word-to-pdf" component={WordToPdf} />
         <Route path="/tools/timer" component={Timer} />
         <Route path="/tools/qr-generator" component={QrGenerator} />
-        <Route path="/ai/youtube-summarizer" component={YoutubeSummarizer} />
         <Route path="/about" component={About} />
         <Route path="/contact" component={Contact} />
         <Route path="/privacy" component={Privacy} />
