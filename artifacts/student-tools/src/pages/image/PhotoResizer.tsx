@@ -5,7 +5,6 @@ import { Minimize2, Download, RotateCcw, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import imageCompression from "browser-image-compression";
 import { PDFDocument } from "pdf-lib";
 import { pdfjsLib } from "@/lib/pdfjs";
 import { toast } from "sonner";
@@ -20,6 +19,101 @@ function formatSize(bytes: number) {
 
 function isPdf(file: File) {
   return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
+
+async function encodeJpeg(bitmap: ImageBitmap, scale: number, quality: number): Promise<Blob> {
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  return await new Promise<Blob>((res, rej) =>
+    canvas.toBlob((b) => (b ? res(b) : rej(new Error("toBlob failed"))), "image/jpeg", quality)
+  );
+}
+
+// Pad a blob with trailing bytes to reach exact target size.
+// JPEG/PNG decoders ignore bytes after the end-of-image marker; PDFs ignore data after %%EOF.
+function padBlobToExactSize(blob: Blob, targetBytes: number): Blob {
+  if (blob.size >= targetBytes) return blob;
+  const padLen = targetBytes - blob.size;
+  const padding = new Uint8Array(padLen);
+  return new Blob([blob, padding], { type: blob.type });
+}
+
+async function compressImageToExactSize(file: File, targetBytes: number): Promise<Blob> {
+  const bitmap = await createImageBitmap(file);
+  try {
+    let scale = 1.0;
+    let bestUnder: Blob | null = null;
+
+    for (let scaleAttempt = 0; scaleAttempt < 6; scaleAttempt++) {
+      const maxQ = await encodeJpeg(bitmap, scale, 0.95);
+      if (maxQ.size <= targetBytes) {
+        bestUnder = maxQ;
+        let lo = 0.95;
+        let hi = 1.0;
+        for (let i = 0; i < 6; i++) {
+          const mid = (lo + hi) / 2;
+          const b = await encodeJpeg(bitmap, scale, mid);
+          if (b.size <= targetBytes) { bestUnder = b; lo = mid; } else { hi = mid; }
+        }
+        break;
+      }
+      let lo = 0.05;
+      let hi = 0.95;
+      for (let i = 0; i < 14; i++) {
+        const mid = (lo + hi) / 2;
+        const b = await encodeJpeg(bitmap, scale, mid);
+        if (b.size <= targetBytes) {
+          bestUnder = b;
+          lo = mid;
+          if (b.size >= targetBytes * 0.985) break;
+        } else {
+          hi = mid;
+        }
+      }
+      if (bestUnder && bestUnder.size >= targetBytes * 0.9) break;
+      scale *= 0.75;
+    }
+
+    if (!bestUnder) {
+      bestUnder = await encodeJpeg(bitmap, 0.1, 0.05);
+    }
+    return padBlobToExactSize(bestUnder, targetBytes);
+  } finally {
+    bitmap.close();
+  }
+}
+
+async function compressPdfToExactSize(file: File, targetBytes: number): Promise<Blob> {
+  let bestUnder: Blob | null = null;
+  const attempts: Array<{ scale: number; quality: number }> = [
+    { scale: 1.0, quality: 0.9 },
+    { scale: 1.0, quality: 0.75 },
+    { scale: 1.0, quality: 0.6 },
+    { scale: 0.85, quality: 0.7 },
+    { scale: 0.7, quality: 0.6 },
+    { scale: 0.55, quality: 0.5 },
+    { scale: 0.4, quality: 0.4 },
+    { scale: 0.3, quality: 0.3 },
+  ];
+  for (const { scale, quality } of attempts) {
+    const blobs = await renderPdfPagesToBlobs(file, scale, quality);
+    const pdf = await buildPdfFromPageBlobs(blobs);
+    if (pdf.size <= targetBytes) {
+      bestUnder = pdf;
+      break;
+    }
+    bestUnder = pdf;
+  }
+  if (!bestUnder) throw new Error("Could not compress PDF");
+  if (bestUnder.size > targetBytes) return bestUnder;
+  return padBlobToExactSize(bestUnder, targetBytes);
 }
 
 async function renderPdfPagesToBlobs(file: File, scale: number, quality: number): Promise<Blob[]> {
@@ -117,28 +211,27 @@ export default function PhotoResizer() {
       const fileIsPdf = isPdf(file);
 
       if (mode === "size") {
-        const unitMultiplier = targetUnit === "KB" ? 1 / 1024 : targetUnit === "MB" ? 1 : 1024;
-        const maxSizeMB = parseFloat(targetSize) * unitMultiplier;
-        const targetBytes = maxSizeMB * 1024 * 1024;
+        const sizeNum = parseFloat(targetSize);
+        if (!sizeNum || sizeNum <= 0) { toast.error("Enter a valid target size"); setLoading(false); return; }
+        const unitBytes = targetUnit === "KB" ? 1024 : targetUnit === "MB" ? 1024 * 1024 : 1024 * 1024 * 1024;
+        const targetBytes = Math.round(sizeNum * unitBytes);
+
+        if (targetBytes < 1024) { toast.error("Target size too small (min 1 KB)"); setLoading(false); return; }
+        if (targetBytes > 500 * 1024 * 1024) { toast.error("Target size too large (max 500 MB)"); setLoading(false); return; }
 
         if (fileIsPdf) {
-          let quality = 0.85;
-          let scale = 1.0;
-          let blob: Blob | null = null;
-          for (let attempt = 0; attempt < 8; attempt++) {
-            const blobs = await renderPdfPagesToBlobs(file, scale, quality);
-            blob = await buildPdfFromPageBlobs(blobs);
-            if (blob.size <= targetBytes || (quality <= 0.3 && scale <= 0.5)) break;
-            if (quality > 0.3) quality -= 0.1;
-            else scale = Math.max(0.3, scale - 0.1);
-          }
-          const url = URL.createObjectURL(blob!);
-          setResult({ url, size: blob!.size, name: file.name.replace(/\.pdf$/i, "-resized.pdf") });
-          toast.success("PDF compressed!");
+          const blob = await compressPdfToExactSize(file, targetBytes);
+          const url = URL.createObjectURL(blob);
+          setResult({ url, size: blob.size, name: file.name.replace(/\.pdf$/i, "-resized.pdf") });
+          if (blob.size === targetBytes) toast.success(`PDF set to exactly ${sizeNum} ${targetUnit}!`);
+          else toast.warning(`Couldn't hit exact size — output is ${formatSize(blob.size)}`);
         } else {
-          const compressed = await imageCompression(file, { maxSizeMB, useWebWorker: true });
-          setResult({ url: URL.createObjectURL(compressed), size: compressed.size, name: `resized-${file.name}` });
-          toast.success("Image compressed!");
+          const blob = await compressImageToExactSize(file, targetBytes);
+          const ext = ".jpg";
+          const baseName = file.name.replace(/\.[^.]+$/, "");
+          setResult({ url: URL.createObjectURL(blob), size: blob.size, name: `${baseName}-${sizeNum}${targetUnit}${ext}` });
+          if (blob.size === targetBytes) toast.success(`Image set to exactly ${sizeNum} ${targetUnit}!`);
+          else toast.warning(`Couldn't hit exact size — output is ${formatSize(blob.size)}`);
         }
 
       } else {
@@ -287,19 +380,24 @@ export default function PhotoResizer() {
                 </label>
               </div>
             ) : (
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Label htmlFor="target-size">Target Size</Label>
-                  <Input id="target-size" data-testid="input-target-size" type="number" min={1} value={targetSize} onChange={(e) => setTargetSize(e.target.value)} className="mt-1" />
-                </div>
-                <div>
-                  <Label>Unit</Label>
-                  <div className="flex gap-1 mt-1">
-                    {(["KB", "MB", "GB"] as const).map((u) => (
-                      <button key={u} data-testid={`unit-${u}`} onClick={() => setTargetUnit(u)} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${targetUnit === u ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>{u}</button>
-                    ))}
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="target-size">Target Size (exact)</Label>
+                    <Input id="target-size" data-testid="input-target-size" type="number" min={1} value={targetSize} onChange={(e) => setTargetSize(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Unit</Label>
+                    <div className="flex gap-1 mt-1">
+                      {(["KB", "MB", "GB"] as const).map((u) => (
+                        <button key={u} data-testid={`unit-${u}`} onClick={() => setTargetUnit(u)} className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${targetUnit === u ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/70"}`}>{u}</button>
+                      ))}
+                    </div>
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Output file will be <span className="font-medium text-foreground">exactly</span> the size you enter. Images convert to JPG.
+                </p>
               </div>
             )}
 
