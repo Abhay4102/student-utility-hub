@@ -60,3 +60,33 @@ id = "KoY1Ti23tHXJKDl06r0AF"
 uri = "file://attached_assets/logo-options/H-midnight-mesh.png"
 type = "image"
 title = "H — Midnight Ice (navy + ice blue + subtle grid)"
+
+[[outputs]]
+id = "gy2Vl7MQ9wMTAYvdBeG2W"
+uri = "file://attached_assets/logo-options/pattern-comparison.png"
+type = "image"
+title = "Dark Pattern Logos — Side by Side"
+
+[[outputs]]
+id = "ppEs-ClOVYWtHCAd7MWtu"
+uri = "file://attached_assets/logo-options/P1-trio-rings.png"
+type = "image"
+title = "P1 — Trio Rings (3 interlocking neon circles)"
+
+[[outputs]]
+id = "_W3tF_KKIxjXlqXUiUFSR"
+uri = "file://attached_assets/logo-options/P2-prism.png"
+type = "image"
+title = "P2 — Prism (3D faceted crystal pyramid)"
+
+[[outputs]]
+id = "Qpww7XU_bclqJW_4oxtDj"
+uri = "file://attached_assets/logo-options/P3-hex-grid.png"
+type = "image"
+title = "P3 — Hex Grid (honeycomb tech pattern)"
+
+[[outputs]]
+id = "tlsZM8Xx9dX6bHxhFRKc4"
+uri = "file://attached_assets/logo-options/P4-orbit.png"
+type = "image"
+title = "P4 — Orbit (3 orbital arcs around glowing core)"
