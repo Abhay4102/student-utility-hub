@@ -2,70 +2,9 @@ import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 
 const SESSION_KEY = "treo-splash-shown";
-const DURATION_MS = 2000;
+const DURATION_MS = 2800;
 
-let sharedCtx: AudioContext | null = null;
-let tonePlayed = false;
-
-function getCtx(): AudioContext | null {
-  if (sharedCtx) return sharedCtx;
-  const AC: typeof AudioContext | undefined =
-    window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AC) return null;
-  try {
-    sharedCtx = new AC();
-    return sharedCtx;
-  } catch {
-    return null;
-  }
-}
-
-function scheduleNotes(ctx: AudioContext) {
-  const now = ctx.currentTime;
-  const notes = [
-    { freq: 523.25, start: 0.0, dur: 1.2 }, // C5
-    { freq: 783.99, start: 0.5, dur: 1.4 }, // G5
-  ];
-
-  for (const n of notes) {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.value = n.freq;
-
-    const t0 = now + n.start;
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(0.16, t0 + 0.08);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + n.dur);
-
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t0);
-    osc.stop(t0 + n.dur + 0.05);
-  }
-}
-
-function playStartupTone() {
-  if (tonePlayed) return;
-  const ctx = getCtx();
-  if (!ctx) return;
-
-  const fire = () => {
-    if (tonePlayed) return;
-    if (ctx.state !== "running") return;
-    tonePlayed = true;
-    try {
-      scheduleNotes(ctx);
-    } catch {
-      tonePlayed = false;
-    }
-  };
-
-  if (ctx.state === "suspended") {
-    ctx.resume().then(fire).catch(() => { /* still blocked, wait for interaction */ });
-  } else {
-    fire();
-  }
-}
+const BRAND = "TREO TOOL'S";
 
 export function WelcomePopup() {
   const [open, setOpen] = useState(false);
@@ -78,25 +17,13 @@ export function WelcomePopup() {
     try { sessionStorage.setItem(SESSION_KEY, "1"); } catch { /* ignore */ }
 
     setOpen(true);
-    playStartupTone();
 
-    // If the browser blocked autoplay before any user gesture, retry on first interaction.
-    const onFirstInteract = () => {
-      playStartupTone();
-      window.removeEventListener("pointerdown", onFirstInteract);
-      window.removeEventListener("keydown", onFirstInteract);
-    };
-    window.addEventListener("pointerdown", onFirstInteract, { once: true });
-    window.addEventListener("keydown", onFirstInteract, { once: true });
-
-    const fadeT = window.setTimeout(() => setFadingOut(true), DURATION_MS - 400);
+    const fadeT = window.setTimeout(() => setFadingOut(true), DURATION_MS - 500);
     const closeT = window.setTimeout(() => setOpen(false), DURATION_MS);
 
     return () => {
       window.clearTimeout(fadeT);
       window.clearTimeout(closeT);
-      window.removeEventListener("pointerdown", onFirstInteract);
-      window.removeEventListener("keydown", onFirstInteract);
     };
   }, []);
 
@@ -104,40 +31,111 @@ export function WelcomePopup() {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-background transition-opacity duration-400 pointer-events-none ${
+      className={`fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-background transition-opacity duration-500 pointer-events-none ${
         fadingOut ? "opacity-0" : "opacity-100"
       }`}
       aria-hidden="true"
       data-testid="welcome-splash"
     >
-      <div className="relative flex flex-col items-center">
-        {/* Soft glow halo */}
-        <div className="absolute inset-0 -m-8 rounded-full bg-primary/20 blur-3xl animate-[pulseGlow_2s_ease-in-out_infinite]" />
+      {/* Animated gradient backdrop */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,hsl(var(--primary)/0.18),transparent_60%)] animate-[bgPulse_2.8s_ease-out_forwards]" />
 
-        {/* Spinning logo */}
-        <div className="relative animate-[spinSlow_2s_linear] [animation-iteration-count:1]">
-          <Logo size={96} />
+      {/* Concentric expanding rings */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="absolute h-40 w-40 rounded-full border border-primary/40 animate-[ringExpand_2.2s_ease-out_0.0s_forwards] opacity-0" />
+        <span className="absolute h-40 w-40 rounded-full border border-primary/30 animate-[ringExpand_2.2s_ease-out_0.35s_forwards] opacity-0" />
+        <span className="absolute h-40 w-40 rounded-full border border-primary/25 animate-[ringExpand_2.2s_ease-out_0.7s_forwards] opacity-0" />
+      </div>
+
+      {/* Floating sparkles */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        {[...Array(8)].map((_, i) => (
+          <span
+            key={i}
+            className="absolute h-1.5 w-1.5 rounded-full bg-primary/70 shadow-[0_0_8px_2px_hsl(var(--primary)/0.6)] opacity-0"
+            style={{
+              animation: `sparkle 1.8s ease-out ${0.5 + i * 0.08}s forwards`,
+              transform: `rotate(${i * 45}deg) translateY(-90px)`,
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="relative flex flex-col items-center">
+        {/* Soft glow halo behind logo */}
+        <div className="absolute inset-0 -m-10 rounded-full bg-primary/30 blur-3xl animate-[haloPulse_2.4s_ease-in-out_infinite]" />
+
+        {/* Logo with entrance animation */}
+        <div className="relative animate-[logoEntrance_1.4s_cubic-bezier(0.22,1,0.36,1)_forwards] opacity-0">
+          <Logo size={104} />
         </div>
 
-        {/* Wordmark fades in shortly after the logo starts spinning */}
-        <p className="relative mt-5 text-xl font-extrabold tracking-[0.2em] text-foreground animate-[fadeUp_1s_ease-out_0.4s_both]">
-          TREO TOOL&apos;S
+        {/* Brand name - letter by letter reveal */}
+        <p className="relative mt-6 flex text-2xl font-extrabold tracking-[0.22em] text-foreground">
+          {BRAND.split("").map((char, i) => (
+            <span
+              key={i}
+              className="inline-block opacity-0"
+              style={{
+                animation: `letterReveal 0.6s cubic-bezier(0.22,1,0.36,1) ${0.9 + i * 0.05}s forwards`,
+                minWidth: char === " " ? "0.4em" : undefined,
+              }}
+            >
+              {char === " " ? "\u00A0" : char}
+            </span>
+          ))}
         </p>
+
+        {/* Tagline fades in last */}
+        <p
+          className="relative mt-3 text-xs uppercase tracking-[0.35em] text-muted-foreground opacity-0"
+          style={{ animation: "fadeIn 0.7s ease-out 1.7s forwards" }}
+        >
+          Student Toolkit
+        </p>
+
+        {/* Loading bar */}
+        <div className="relative mt-8 h-[2px] w-48 overflow-hidden rounded-full bg-primary/15">
+          <span className="absolute inset-y-0 left-0 w-full origin-left scale-x-0 bg-gradient-to-r from-primary/50 via-primary to-primary/50 animate-[loadBar_2.2s_cubic-bezier(0.4,0,0.2,1)_0.4s_forwards]" />
+        </div>
       </div>
 
       <style>{`
-        @keyframes spinSlow {
-          from { transform: rotate(0deg) scale(0.92); opacity: 0; }
-          20%  { opacity: 1; }
-          to   { transform: rotate(360deg) scale(1); opacity: 1; }
+        @keyframes logoEntrance {
+          0%   { transform: rotate(-180deg) scale(0.3); opacity: 0; filter: blur(8px); }
+          50%  { opacity: 1; filter: blur(0); }
+          100% { transform: rotate(0deg) scale(1); opacity: 1; filter: blur(0); }
         }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(8px); }
-          to   { opacity: 1; transform: translateY(0); }
+        @keyframes letterReveal {
+          0%   { opacity: 0; transform: translateY(12px) scale(0.9); filter: blur(4px); }
+          100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
         }
-        @keyframes pulseGlow {
-          0%, 100% { opacity: 0.35; transform: scale(0.95); }
-          50%      { opacity: 0.7;  transform: scale(1.05); }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to   { opacity: 0.7; transform: translateY(0); }
+        }
+        @keyframes haloPulse {
+          0%, 100% { opacity: 0.4; transform: scale(0.9); }
+          50%      { opacity: 0.85; transform: scale(1.15); }
+        }
+        @keyframes ringExpand {
+          0%   { transform: scale(0.2); opacity: 0.9; }
+          80%  { opacity: 0.3; }
+          100% { transform: scale(2.5); opacity: 0; }
+        }
+        @keyframes sparkle {
+          0%   { opacity: 0; transform: rotate(var(--rot, 0deg)) translateY(-40px) scale(0); }
+          40%  { opacity: 1; transform: rotate(var(--rot, 0deg)) translateY(-90px) scale(1); }
+          100% { opacity: 0; transform: rotate(var(--rot, 0deg)) translateY(-140px) scale(0.3); }
+        }
+        @keyframes loadBar {
+          0%   { transform: scaleX(0); }
+          100% { transform: scaleX(1); }
+        }
+        @keyframes bgPulse {
+          0%   { opacity: 0; }
+          30%  { opacity: 1; }
+          100% { opacity: 0.4; }
         }
       `}</style>
     </div>
