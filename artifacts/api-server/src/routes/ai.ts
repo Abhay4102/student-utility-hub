@@ -4,6 +4,140 @@ import { openai } from "@workspace/integrations-openai-ai-server";
 import { speechToText, detectAudioFormat, ensureCompatibleFormat } from "@workspace/integrations-openai-ai-server/audio";
 import { YoutubeTranscript } from "youtube-transcript";
 
+const YT_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36";
+
+interface YtCaptionTrack {
+  baseUrl: string;
+  languageCode: string;
+  kind?: string;
+  name?: { simpleText?: string };
+}
+
+interface YtMeta {
+  title?: string;
+  description?: string;
+  author?: string;
+  lengthSeconds?: string;
+  captionTracks: YtCaptionTrack[];
+}
+
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(parseInt(d, 10)));
+}
+
+async function fetchYoutubeMeta(videoId: string): Promise<YtMeta> {
+  const url = `https://www.youtube.com/watch?v=${videoId}&hl=en`;
+  const resp = await fetch(url, {
+    headers: {
+      "User-Agent": YT_UA,
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+  });
+  if (!resp.ok) throw new Error(`YouTube page returned ${resp.status}`);
+  const html = await resp.text();
+
+  const match =
+    html.match(/var ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?\})\s*;\s*(?:var|<\/script>)/) ||
+    html.match(/ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?\})\s*;/);
+  if (!match) throw new Error("Could not find player response");
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(match[1]) as Record<string, unknown>;
+  } catch {
+    throw new Error("Could not parse player response");
+  }
+
+  const videoDetails = (parsed.videoDetails as Record<string, unknown> | undefined) || {};
+  const captions = (parsed.captions as Record<string, unknown> | undefined) || {};
+  const tracklist = (captions.playerCaptionsTracklistRenderer as Record<string, unknown> | undefined) || {};
+  const captionTracks = (tracklist.captionTracks as YtCaptionTrack[] | undefined) || [];
+
+  return {
+    title: typeof videoDetails.title === "string" ? videoDetails.title : undefined,
+    description: typeof videoDetails.shortDescription === "string" ? videoDetails.shortDescription : undefined,
+    author: typeof videoDetails.author === "string" ? videoDetails.author : undefined,
+    lengthSeconds: typeof videoDetails.lengthSeconds === "string" ? videoDetails.lengthSeconds : undefined,
+    captionTracks,
+  };
+}
+
+async function fetchCaptionText(track: YtCaptionTrack): Promise<string> {
+  const url = `${track.baseUrl}&fmt=json3`;
+  const resp = await fetch(url, { headers: { "User-Agent": YT_UA } });
+  if (!resp.ok) throw new Error(`Caption fetch returned ${resp.status}`);
+  const data = (await resp.json()) as { events?: Array<{ segs?: Array<{ utf8?: string }> }> };
+  const parts: string[] = [];
+  for (const ev of data.events || []) {
+    for (const seg of ev.segs || []) {
+      if (seg.utf8) parts.push(seg.utf8);
+    }
+  }
+  return parts.join(" ").replace(/\s+/g, " ").replace(/\[.*?\]/g, "").trim();
+}
+
+function pickBestCaptionTrack(tracks: YtCaptionTrack[], preferredLangs: string[] = ["en", "hi"]): YtCaptionTrack | null {
+  if (tracks.length === 0) return null;
+  for (const lang of preferredLangs) {
+    const manual = tracks.find((t) => t.languageCode === lang && t.kind !== "asr");
+    if (manual) return manual;
+  }
+  for (const lang of preferredLangs) {
+    const auto = tracks.find((t) => t.languageCode === lang);
+    if (auto) return auto;
+  }
+  const anyManual = tracks.find((t) => t.kind !== "asr");
+  return anyManual || tracks[0];
+}
+
+async function getYoutubeTranscriptRobust(videoId: string): Promise<{
+  transcript: string;
+  title?: string;
+  description?: string;
+  source: "captions" | "description";
+}> {
+  let meta: YtMeta | null = null;
+  try {
+    meta = await fetchYoutubeMeta(videoId);
+  } catch {
+    /* fall through, try library */
+  }
+
+  if (meta && meta.captionTracks.length > 0) {
+    const track = pickBestCaptionTrack(meta.captionTracks);
+    if (track) {
+      try {
+        const txt = await fetchCaptionText(track);
+        if (txt && txt.length > 30) {
+          return { transcript: txt, title: meta.title, description: meta.description, source: "captions" };
+        }
+      } catch { /* fall through */ }
+    }
+  }
+
+  try {
+    const segments = await YoutubeTranscript.fetchTranscript(videoId);
+    const txt = segments.map((s) => decodeHtmlEntities(s.text)).join(" ").replace(/\s+/g, " ").trim();
+    if (txt && txt.length > 30) {
+      return { transcript: txt, title: meta?.title, description: meta?.description, source: "captions" };
+    }
+  } catch { /* fall through */ }
+
+  if (meta && meta.description && meta.description.trim().length > 60) {
+    const enriched = `Video title: ${meta.title || "Untitled"}\nChannel: ${meta.author || "Unknown"}\n\nDescription:\n${meta.description}`;
+    return { transcript: enriched, title: meta.title, description: meta.description, source: "description" };
+  }
+
+  throw new Error("No captions or description available");
+}
+
 const router = Router();
 
 type AskMode = "standard" | "concise" | "detailed" | "step" | "exam" | "eli12";
@@ -808,40 +942,35 @@ router.post("/ai/youtube-summarize", async (req, res) => {
   const safeFormat: YtFormat = format && YT_FORMAT_INSTRUCTIONS[format] ? format : "detailed";
   const safeLanguage = (language && typeof language === "string" && language.trim().length > 0 ? language : "English").slice(0, 40);
 
-  // Fetch transcript first (before opening SSE so we can return JSON error cleanly).
   let transcriptText = "";
   let videoTitle: string | undefined;
+  let source: "captions" | "description" = "captions";
   try {
-    const segments = await YoutubeTranscript.fetchTranscript(videoId);
-    transcriptText = segments.map((s) => s.text).join(" ").replace(/\s+/g, " ").trim();
-    if (!transcriptText) throw new Error("Empty transcript");
+    const result = await getYoutubeTranscriptRobust(videoId);
+    transcriptText = result.transcript;
+    videoTitle = result.title;
+    source = result.source;
   } catch (err) {
     req.log.warn({ err, videoId }, "YouTube transcript fetch failed");
-    res.status(422).json({ error: "Couldn't fetch captions for this video. It may be private, age-restricted, or have no subtitles enabled. Try a different video." });
+    res.status(422).json({ error: "Couldn't fetch captions or description for this video. It may be private, age-restricted, deleted, or region-blocked. Try a different video." });
     return;
   }
 
-  // Try to fetch the video title (best-effort, non-blocking on failure).
-  try {
-    const oembed = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
-    if (oembed.ok) {
-      const data = await oembed.json() as { title?: string };
-      if (data.title) videoTitle = data.title;
-    }
-  } catch { /* ignore */ }
-
-  // Hard cap transcript length to keep tokens reasonable (~80k chars ≈ 20k tokens).
   const MAX_CHARS = 80000;
   if (transcriptText.length > MAX_CHARS) {
-    transcriptText = transcriptText.slice(0, MAX_CHARS) + " …[transcript truncated]";
+    transcriptText = transcriptText.slice(0, MAX_CHARS) + " …[truncated]";
   }
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
-  // Send meta first so the client can show the title.
-  res.write(`data: ${JSON.stringify({ meta: { title: videoTitle, videoId } })}\n\n`);
+  res.write(`data: ${JSON.stringify({ meta: { title: videoTitle, videoId, source } })}\n\n`);
+
+  const userIntro =
+    source === "captions"
+      ? `Transcript of the YouTube video${videoTitle ? ` "${videoTitle}"` : ""}:\n\n${transcriptText}`
+      : `This YouTube video has no captions available. Summarize it based on the title, channel, and description below. At the very top, add this italic note exactly: *Note: This video has no captions. The summary is based on the video's title and description, which may not fully reflect the video's content.*\n\n${transcriptText}`;
 
   try {
     const stream = await openai.chat.completions.create({
@@ -849,7 +978,7 @@ router.post("/ai/youtube-summarize", async (req, res) => {
       max_completion_tokens: 6000,
       messages: [
         { role: "system", content: buildYoutubePrompt(safeFormat, safeLanguage, videoTitle) },
-        { role: "user", content: `Transcript of the YouTube video${videoTitle ? ` "${videoTitle}"` : ""}:\n\n${transcriptText}` },
+        { role: "user", content: userIntro },
       ],
       stream: true,
     });
