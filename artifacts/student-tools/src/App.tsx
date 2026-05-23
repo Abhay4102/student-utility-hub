@@ -33,6 +33,9 @@ const PeriodicTable = lazy(() => import("@/pages/science/PeriodicTable"));
 const PhysicsCalculator = lazy(() => import("@/pages/science/PhysicsCalculator"));
 const StudyAssistant = lazy(() => import("@/pages/ai/StudyAssistant"));
 const NotesMaker = lazy(() => import("@/pages/ai/NotesMaker"));
+const Paraphraser = lazy(() => import("@/pages/ai/Paraphraser"));
+const AiDetector = lazy(() => import("@/pages/ai/AiDetector"));
+const CitationGenerator = lazy(() => import("@/pages/ai/CitationGenerator"));
 const GpaCalculator = lazy(() => import("@/pages/tools/GpaCalculator"));
 const AttendanceCalculator = lazy(() => import("@/pages/tools/AttendanceCalculator"));
 const PdfToWord = lazy(() => import("@/pages/pdf/PdfToWord"));
@@ -79,6 +82,9 @@ function Router() {
         <Route path="/science/physics-calculator" component={PhysicsCalculator} />
         <Route path="/ai/study-assistant" component={StudyAssistant} />
         <Route path="/ai/notes-maker" component={NotesMaker} />
+        <Route path="/ai/paraphraser" component={Paraphraser} />
+        <Route path="/ai/ai-detector" component={AiDetector} />
+        <Route path="/ai/citation-generator" component={CitationGenerator} />
         <Route path="/tools/gpa-calculator" component={GpaCalculator} />
         <Route path="/tools/attendance-calculator" component={AttendanceCalculator} />
         <Route path="/pdf/pdf-to-word" component={PdfToWord} />

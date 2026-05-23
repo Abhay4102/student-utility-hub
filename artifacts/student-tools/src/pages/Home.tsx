@@ -5,7 +5,7 @@ import {
   FilePlus, FileEdit, Lock, Unlock, Merge, Scissors, Archive, FileType2, ArrowLeftRight,
   FlaskConical, Atom, BookOpen, NotebookPen, GraduationCap, CalendarCheck,
   Sparkles, Image as ImageIcon, FileStack, Wrench, Microscope, FileSignature,
-  ArrowRight, Star, Clock, Command, X,
+  ArrowRight, Star, Clock, Command, X, Wand2, ScanSearch, Quote,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/Logo";
@@ -25,6 +25,9 @@ type Tool = {
 const tools: Tool[] = [
   { title: "Study Assistant", description: "Ask any academic question — text, voice or image, get clear AI answers", href: "/ai/study-assistant", icon: BookOpen, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400", category: "AI", badge: "violet", featured: true, keywords: ["ai", "tutor", "homework", "doubt", "chat", "gpt"] },
   { title: "AI Notes Maker", description: "Generate clean, structured study notes from any topic or source text", href: "/ai/notes-maker", icon: NotebookPen, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400", category: "AI", badge: "violet", featured: true, keywords: ["ai", "summary", "summarize", "revision", "study", "notes"] },
+  { title: "AI Paraphraser", description: "Rewrite essays, paragraphs and assignments to be unique and plagiarism-safe — 7 tones", href: "/ai/paraphraser", icon: Wand2, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400", category: "AI", badge: "violet", featured: true, keywords: ["paraphrase", "rewrite", "plagiarism", "unique", "rewriter", "spinner", "humanize", "essay"] },
+  { title: "AI Content Detector", description: "Check whether text was written by ChatGPT, Gemini or Claude — with score, signals and humanise tips", href: "/ai/ai-detector", icon: ScanSearch, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400", category: "AI", badge: "violet", keywords: ["ai detector", "chatgpt detector", "gptzero", "ai check", "plagiarism", "originality"] },
+  { title: "Citation Generator", description: "APA 7, MLA 9, Harvard, Chicago, IEEE & Vancouver references for books, journals & websites", href: "/ai/citation-generator", icon: Quote, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400", category: "AI", badge: "violet", keywords: ["citation", "bibliography", "apa", "mla", "harvard", "ieee", "reference"] },
   { title: "GPA Calculator (India)", description: "Calculate CGPA, SGPA and percentage on India's 10-point grading scale", href: "/tools/gpa-calculator", icon: GraduationCap, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400", category: "Utilities", badge: "amber", keywords: ["gpa", "cgpa", "sgpa", "grade", "percentage", "marks"] },
   { title: "Attendance Calculator", description: "How many classes can you skip / must attend to stay above 75%", href: "/tools/attendance-calculator", icon: CalendarCheck, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400", category: "Utilities", badge: "amber", featured: true, keywords: ["attendance", "bunk", "skip", "classes", "75"] },
   { title: "Calculator", description: "Scientific calculator with history", href: "/calculator", icon: Calculator, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400", category: "Utilities", badge: "amber", keywords: ["calc", "scientific", "math", "trig", "sin", "cos", "log"] },

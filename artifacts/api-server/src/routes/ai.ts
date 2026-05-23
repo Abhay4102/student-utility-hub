@@ -306,4 +306,212 @@ router.post("/ai/notes", async (req, res) => {
   }
 });
 
+/* -------------------- PARAPHRASER -------------------- */
+
+type ParaphraseTone = "academic" | "simple" | "fluent" | "formal" | "creative" | "shorten" | "expand";
+type ParaphraseStrength = "light" | "medium" | "heavy";
+
+const TONE_INSTRUCTIONS: Record<ParaphraseTone, string> = {
+  academic: "Use formal academic prose suitable for essays, research papers and dissertations. Prefer precise vocabulary, complete sentences, and an objective third-person voice. Avoid contractions and colloquialisms.",
+  simple: "Rewrite in plain, clear English that a 12-year-old can easily understand. Short sentences, common words, no jargon.",
+  fluent: "Improve clarity, grammar and natural sentence flow while keeping the original tone. The result should read smoothly without sounding robotic.",
+  formal: "Use a polished, formal register suitable for business or official correspondence. Avoid contractions and informal language.",
+  creative: "Rewrite with vivid, engaging language — varied sentence structure, fresh word choices, and a confident, lively voice — while keeping all factual content intact.",
+  shorten: "Condense the text to roughly half its length while preserving every important fact. Cut filler words, redundancy and weak hedging.",
+  expand: "Expand the text to roughly 1.5x its length by adding clarifying detail, smoother transitions and richer explanation. Do not invent facts.",
+};
+
+const STRENGTH_INSTRUCTIONS: Record<ParaphraseStrength, string> = {
+  light:  "Make only minor changes — fix awkward phrasing and improve a few word choices. The output should clearly resemble the original.",
+  medium: "Substantially rewrite sentences and vary word choice and structure, while keeping every fact and idea intact.",
+  heavy:  "Aggressively reword and restructure. Different sentence order, different vocabulary, different rhythm — but the same meaning, no added or removed facts.",
+};
+
+function buildParaphrasePrompt(tone: ParaphraseTone, strength: ParaphraseStrength): string {
+  return `You are an expert academic editor and paraphrasing engine for TREO TOOL'S.
+
+Tone: **${tone.toUpperCase()}** — ${TONE_INSTRUCTIONS[tone]}
+
+Rewrite strength: **${strength.toUpperCase()}** — ${STRENGTH_INSTRUCTIONS[strength]}
+
+Strict rules:
+- Output ONLY the rewritten text. No preamble like "Here is the paraphrased version" and no closing notes.
+- Preserve every fact, number, name, date, citation and technical term EXACTLY.
+- Do NOT invent new facts, quotes, statistics, or sources.
+- Preserve the original paragraph breaks and overall structure unless tone is "shorten" or "expand".
+- The output must be in the same language as the input.
+- Make the result sound naturally written by a human — avoid robotic phrasing, repetitive structure, and obvious AI tells (e.g. "It is important to note that…", "In conclusion,", overuse of em-dashes, every sentence starting with the same connector).
+- Vary sentence length and structure naturally.
+- Do not use markdown formatting unless the input already uses it.`;
+}
+
+router.post("/ai/paraphrase", async (req, res) => {
+  const { text, tone, strength } = req.body as {
+    text?: string;
+    tone?: ParaphraseTone;
+    strength?: ParaphraseStrength;
+  };
+
+  if (!text || typeof text !== "string" || text.trim().length === 0) {
+    res.status(400).json({ error: "Text is required" });
+    return;
+  }
+  if (text.length > 12000) {
+    res.status(400).json({ error: "Text is too long. Please keep it under 12,000 characters." });
+    return;
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  const safeTone: ParaphraseTone = tone && TONE_INSTRUCTIONS[tone] ? tone : "fluent";
+  const safeStrength: ParaphraseStrength = strength && STRENGTH_INSTRUCTIONS[strength] ? strength : "medium";
+
+  try {
+    const stream = await openai.chat.completions.create({
+      model: "gpt-5.1",
+      max_completion_tokens: 4500,
+      messages: [
+        { role: "system", content: buildParaphrasePrompt(safeTone, safeStrength) },
+        { role: "user", content: `Rewrite the following text:\n\n${text}` },
+      ],
+      stream: true,
+    });
+
+    req.on("close", () => { try { stream.controller.abort(); } catch { /* noop */ } });
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) res.write(`data: ${JSON.stringify({ content })}\n\n`);
+    }
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
+  } catch (err) {
+    req.log.error(err, "Paraphrase stream error");
+    try {
+      res.write(`data: ${JSON.stringify({ error: "Failed to paraphrase. Please try again." })}\n\n`);
+      res.end();
+    } catch { /* client disconnected */ }
+  }
+});
+
+/* -------------------- AI CONTENT DETECTOR -------------------- */
+
+router.post("/ai/detect", async (req, res) => {
+  const { text } = req.body as { text?: string };
+
+  if (!text || typeof text !== "string" || text.trim().length < 80) {
+    res.status(400).json({ error: "Please provide at least 80 characters of text for accurate detection." });
+    return;
+  }
+  if (text.length > 15000) {
+    res.status(400).json({ error: "Text is too long. Please keep it under 15,000 characters." });
+    return;
+  }
+
+  const systemPrompt = `You are TREO TOOL'S AI Content Detector — a careful forensic analyst that estimates the probability a piece of text was generated by a large language model (such as ChatGPT, Gemini, Claude, Llama or similar).
+
+You are NOT a perfect detector and you must clearly say so. Use the following linguistic signals to form your estimate:
+
+- Perplexity & burstiness: human writing has more variation in sentence length and unexpected word choices; AI writing tends to be smoother and more uniform.
+- Vocabulary diversity and use of unusual or specific words.
+- Repetitive sentence structures, overuse of transitional phrases ("Moreover", "Furthermore", "In conclusion", "It is important to note that", "Delve into", "Tapestry", "Navigate the landscape of").
+- Overuse of em-dashes, semicolons, or perfectly balanced "not only X but also Y" constructions.
+- Hedging clichés ("It is worth noting", "While it is true that").
+- Lack of typos, personal voice, idioms, or genuine opinions.
+- Topic drift, hallucinated facts, or generic filler that says little.
+- For technical text: overly textbook-like phrasing, perfect organisation, but shallow examples.
+
+Respond with STRICT JSON only — no prose outside the JSON. Schema:
+
+{
+  "aiProbability": <integer 0-100, your confidence the text is AI-generated>,
+  "verdict": "<one of: 'Likely Human', 'Mostly Human', 'Mixed', 'Mostly AI', 'Likely AI'>",
+  "confidence": "<one of: 'low', 'medium', 'high'>",
+  "summary": "<2-3 sentence overall assessment in plain English>",
+  "signals": [
+    { "label": "<short signal name>", "weight": "<'human' or 'ai'>", "detail": "<one sentence explanation>" },
+    ... 4 to 7 such signals
+  ],
+  "suspiciousSentences": [
+    "<verbatim sentence from input that reads most AI-like>",
+    ... up to 3 sentences (empty array if none)
+  ],
+  "humanizeTips": [
+    "<short actionable tip to make this more human, e.g. 'Replace the third sentence with a specific personal example.'>",
+    ... 3 to 5 tips
+  ]
+}
+
+Calibration:
+- 0-25 = Likely Human, 26-45 = Mostly Human, 46-60 = Mixed, 61-80 = Mostly AI, 81-100 = Likely AI.
+- Confidence should be 'low' for texts under ~150 words or in unusual styles.
+- Be honest: if the text is too short or ambiguous, say so in the summary and lower the confidence.`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-5.1",
+      max_completion_tokens: 2200,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Analyse this text:\n\n"""\n${text}\n"""` },
+      ],
+    });
+
+    const raw = response.choices[0]?.message?.content ?? "{}";
+    let parsed: Record<string, unknown>;
+    try { parsed = JSON.parse(raw) as Record<string, unknown>; }
+    catch {
+      res.status(502).json({ error: "Detector returned malformed output. Please try again." });
+      return;
+    }
+
+    // Sanitize + enforce contract
+    const VERDICTS = ["Likely Human", "Mostly Human", "Mixed", "Mostly AI", "Likely AI"] as const;
+    const CONFIDENCES = ["low", "medium", "high"] as const;
+    const probRaw = Number(parsed.aiProbability);
+    const aiProbability = Number.isFinite(probRaw) ? Math.max(0, Math.min(100, Math.round(probRaw))) : 50;
+    const fallbackVerdict =
+      aiProbability <= 25 ? "Likely Human" :
+      aiProbability <= 45 ? "Mostly Human" :
+      aiProbability <= 60 ? "Mixed" :
+      aiProbability <= 80 ? "Mostly AI" : "Likely AI";
+    const verdict = typeof parsed.verdict === "string" && (VERDICTS as readonly string[]).includes(parsed.verdict)
+      ? parsed.verdict : fallbackVerdict;
+    const confidence = typeof parsed.confidence === "string" && (CONFIDENCES as readonly string[]).includes(parsed.confidence)
+      ? parsed.confidence : "medium";
+    const summary = typeof parsed.summary === "string" ? parsed.summary.slice(0, 1000) : "Analysis unavailable.";
+
+    const signalsRaw = Array.isArray(parsed.signals) ? parsed.signals : [];
+    const signals = signalsRaw
+      .map((s: unknown) => {
+        if (!s || typeof s !== "object") return null;
+        const o = s as Record<string, unknown>;
+        const label = typeof o.label === "string" ? o.label.slice(0, 120) : "";
+        const weight = o.weight === "ai" || o.weight === "human" ? o.weight : "ai";
+        const detail = typeof o.detail === "string" ? o.detail.slice(0, 400) : "";
+        return label ? { label, weight, detail } : null;
+      })
+      .filter((x): x is { label: string; weight: "ai" | "human"; detail: string } => x !== null)
+      .slice(0, 8);
+
+    const suspiciousSentences = (Array.isArray(parsed.suspiciousSentences) ? parsed.suspiciousSentences : [])
+      .filter((s: unknown): s is string => typeof s === "string" && s.trim().length > 0)
+      .map((s: string) => s.slice(0, 500))
+      .slice(0, 3);
+
+    const humanizeTips = (Array.isArray(parsed.humanizeTips) ? parsed.humanizeTips : [])
+      .filter((s: unknown): s is string => typeof s === "string" && s.trim().length > 0)
+      .map((s: string) => s.slice(0, 300))
+      .slice(0, 5);
+
+    res.json({ aiProbability, verdict, confidence, summary, signals, suspiciousSentences, humanizeTips });
+  } catch (err) {
+    req.log.error(err, "AI detector error");
+    res.status(500).json({ error: "Failed to analyse text. Please try again." });
+  }
+});
+
 export default router;
