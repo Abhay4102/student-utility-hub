@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Buffer } from "node:buffer";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { speechToText, detectAudioFormat, ensureCompatibleFormat } from "@workspace/integrations-openai-ai-server/audio";
+import { YoutubeTranscript } from "youtube-transcript";
 
 const router = Router();
 
@@ -715,6 +716,158 @@ Calibration scale (for your own probability):
   } catch (err) {
     req.log.error(err, "AI detector error");
     res.status(500).json({ error: "Failed to analyse text. Please try again." });
+  }
+});
+
+/* -------------------- YOUTUBE SUMMARIZER -------------------- */
+
+type YtFormat = "concise" | "detailed" | "bullets" | "study";
+
+const YT_FORMAT_INSTRUCTIONS: Record<YtFormat, string> = {
+  concise: `Produce a tight TL;DR:
+## TL;DR
+A single 2–3 sentence overview.
+
+## Top 5 takeaways
+- Five concise bullets, each a complete idea.
+
+## Watch this if…
+- 2–3 short bullets describing who benefits most.`,
+  detailed: `Produce thorough study-grade notes:
+## Overview
+2–4 sentences setting context.
+
+## Detailed Notes
+Use ## sub-headings for each major section in the video, with bullet points underneath. **Bold** key terms. Include any numbers, formulas, or examples mentioned.
+
+## Key Quotes / Insights
+- 3–5 noteworthy direct insights (paraphrased if not exact).
+
+## Action Items
+- 3–5 concrete things the viewer should do or try.
+
+## Key Takeaway
+One final summary sentence.`,
+  bullets: `Produce a clean bullet-only digest:
+## Key Points
+- 8–15 bullet points capturing every important idea.
+- One idea per bullet. **Bold** key terms. Keep each bullet under 25 words.
+
+## Key Takeaway
+One final summary sentence.`,
+  study: `Produce a complete study pack:
+## Summary
+3–4 sentence overview.
+
+## Detailed Notes
+Use ## sub-headings, bullet points, **bold** key terms, and include examples/formulas.
+
+## Key Terms
+- **Term:** Definition (5–10 terms).
+
+## Flashcards
+Format each card EXACTLY as:
+**Q1.** Question?
+**A.** Answer.
+
+Produce 8–12 flashcards.
+
+## Quick Revision
+- 5 one-line takeaways.`,
+};
+
+function buildYoutubePrompt(format: YtFormat, language: string, title?: string): string {
+  return `You are TREO TOOL'S YouTube Summarizer — turning long videos into clear study material for students.
+
+${title ? `Video title: "${title}"\n` : ""}Output language: ${language}. Respond entirely in this language (translate the transcript if needed).
+
+Output style: ${format.toUpperCase()}
+${YT_FORMAT_INSTRUCTIONS[format]}
+
+Core rules:
+- Base the summary STRICTLY on the transcript provided. Do not invent facts, statistics, names, or quotes that aren't supported by the transcript.
+- If the transcript is auto-generated and noisy, interpret intelligently but don't fabricate details.
+- Use markdown formatting: ## sub-headings, **bold key terms**, bullet points.
+- Do NOT include filler like "In this video, the speaker says…" — get straight to the substance.
+- Do NOT include timestamps unless they appear in the transcript.
+- If the video is mostly entertainment / non-educational, still produce a useful structured summary in the requested format.`;
+}
+
+router.post("/ai/youtube-summarize", async (req, res) => {
+  const { videoId, format, language } = req.body as {
+    videoId?: string;
+    format?: YtFormat;
+    language?: string;
+  };
+
+  if (!videoId || typeof videoId !== "string" || !/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
+    res.status(400).json({ error: "Invalid YouTube video ID." });
+    return;
+  }
+
+  const safeFormat: YtFormat = format && YT_FORMAT_INSTRUCTIONS[format] ? format : "detailed";
+  const safeLanguage = (language && typeof language === "string" && language.trim().length > 0 ? language : "English").slice(0, 40);
+
+  // Fetch transcript first (before opening SSE so we can return JSON error cleanly).
+  let transcriptText = "";
+  let videoTitle: string | undefined;
+  try {
+    const segments = await YoutubeTranscript.fetchTranscript(videoId);
+    transcriptText = segments.map((s) => s.text).join(" ").replace(/\s+/g, " ").trim();
+    if (!transcriptText) throw new Error("Empty transcript");
+  } catch (err) {
+    req.log.warn({ err, videoId }, "YouTube transcript fetch failed");
+    res.status(422).json({ error: "Couldn't fetch captions for this video. It may be private, age-restricted, or have no subtitles enabled. Try a different video." });
+    return;
+  }
+
+  // Try to fetch the video title (best-effort, non-blocking on failure).
+  try {
+    const oembed = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+    if (oembed.ok) {
+      const data = await oembed.json() as { title?: string };
+      if (data.title) videoTitle = data.title;
+    }
+  } catch { /* ignore */ }
+
+  // Hard cap transcript length to keep tokens reasonable (~80k chars ≈ 20k tokens).
+  const MAX_CHARS = 80000;
+  if (transcriptText.length > MAX_CHARS) {
+    transcriptText = transcriptText.slice(0, MAX_CHARS) + " …[transcript truncated]";
+  }
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+
+  // Send meta first so the client can show the title.
+  res.write(`data: ${JSON.stringify({ meta: { title: videoTitle, videoId } })}\n\n`);
+
+  try {
+    const stream = await openai.chat.completions.create({
+      model: "gpt-5.1",
+      max_completion_tokens: 6000,
+      messages: [
+        { role: "system", content: buildYoutubePrompt(safeFormat, safeLanguage, videoTitle) },
+        { role: "user", content: `Transcript of the YouTube video${videoTitle ? ` "${videoTitle}"` : ""}:\n\n${transcriptText}` },
+      ],
+      stream: true,
+    });
+
+    req.on("close", () => { try { stream.controller.abort(); } catch { /* noop */ } });
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) res.write(`data: ${JSON.stringify({ content })}\n\n`);
+    }
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
+  } catch (err) {
+    req.log.error(err, "YouTube summarize stream error");
+    try {
+      res.write(`data: ${JSON.stringify({ error: "Failed to summarize video. Please try again." })}\n\n`);
+      res.end();
+    } catch { /* client disconnected */ }
   }
 });
 

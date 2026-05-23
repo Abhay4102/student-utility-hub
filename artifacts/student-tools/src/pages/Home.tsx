@@ -6,6 +6,7 @@ import {
   FlaskConical, Atom, BookOpen, NotebookPen, GraduationCap, CalendarCheck,
   Sparkles, Image as ImageIcon, FileStack, Wrench, Microscope, FileSignature,
   ArrowRight, Star, Clock, Command, X, Wand2, ScanSearch, Quote,
+  Timer, QrCode, Youtube,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/Logo";
@@ -53,6 +54,9 @@ const tools: Tool[] = [
   { title: "Text to PDF", description: "Convert plain text to a PDF document", href: "/pdf/text-to-pdf", icon: FileText, color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400", category: "PDF Tools", badge: "red", keywords: ["text", "pdf", "convert", "txt"] },
   { title: "PDF to Word", description: "Extract text from PDF and convert to editable .docx", href: "/pdf/pdf-to-word", icon: FileType2, color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400", category: "PDF Tools", badge: "red", keywords: ["pdf", "word", "docx", "convert", "editable"] },
   { title: "Word to PDF", description: "Convert .docx Word documents to professional PDFs", href: "/pdf/word-to-pdf", icon: FileType2, color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400", category: "PDF Tools", badge: "red", keywords: ["word", "docx", "pdf", "convert"] },
+  { title: "AI YouTube Summarizer", description: "Paste any YouTube URL — get TL;DR, detailed notes, or flashcards in seconds", href: "/ai/youtube-summarizer", icon: Youtube, color: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400", category: "AI", badge: "violet", featured: true, keywords: ["youtube", "video", "summary", "summarizer", "transcript", "notes", "ai", "lecture"] },
+  { title: "Pomodoro Timer", description: "Advanced focus timer with tasks, streaks, sounds & daily stats — built for study sessions", href: "/tools/pomodoro", icon: Timer, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400", category: "Utilities", badge: "amber", featured: true, keywords: ["pomodoro", "timer", "focus", "study", "productivity", "25", "break", "tomato"] },
+  { title: "QR Code Generator", description: "Create QR codes for URLs, Wi-Fi, vCards, email, SMS & more — custom colors, no watermark", href: "/tools/qr-generator", icon: QrCode, color: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400", category: "Utilities", badge: "amber", keywords: ["qr", "qrcode", "scan", "wifi", "vcard", "barcode", "generator"] },
 ];
 
 const categoryMeta: Record<string, { icon: typeof Calculator; gradient: string; ring: string }> = {
