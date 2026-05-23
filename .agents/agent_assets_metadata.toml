@@ -1,0 +1,32 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "v6WnedJMzsvV8qxqrWqDp"
+uri = "file://attached_assets/logo-options/comparison.png"
+type = "image"
+title = "All 4 Logo Options — Side by Side"
+
+[[outputs]]
+id = "MLk_lTQh_oJJHk9M5j9wZ"
+uri = "file://attached_assets/logo-options/A-trefoil.png"
+type = "image"
+title = "Option A — Trefoil (3 petals, pure brand mark)"
+
+[[outputs]]
+id = "f_pbjkskyHXtEGuYp1ynw"
+uri = "file://attached_assets/logo-options/B-monogram.png"
+type = "image"
+title = "Option B — Bold Monogram (no badge, Linear/Vercel style)"
+
+[[outputs]]
+id = "CfaWrQ565NiDqZ0_Zz3si"
+uri = "file://attached_assets/logo-options/C-hex.png"
+type = "image"
+title = "Option C — Hexagon Tech (engineering/tools vibe)"
+
+[[outputs]]
+id = "njgX771LBlWKlfUnR_DA5"
+uri = "file://attached_assets/logo-options/D-current.png"
+type = "image"
+title = "Option D — Current (gradient rounded square — already live)"
