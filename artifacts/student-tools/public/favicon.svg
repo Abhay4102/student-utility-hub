@@ -13,10 +13,8 @@
       <stop offset="100%" stop-color="#db2777"/>
     </linearGradient>
   </defs>
-  <g transform="translate(50 54)">
-    <path d="M0 -46 L-42 26 L0 6 Z" fill="url(#f1)"/>
-    <path d="M0 -46 L42 26 L0 6 Z" fill="url(#f2)"/>
-    <path d="M-42 26 L42 26 L0 6 Z" fill="url(#f3)"/>
-    <path d="M0 -46 L-42 26 L42 26 Z M0 -46 L0 6 M-42 26 L0 6 M42 26 L0 6" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.1" stroke-linejoin="round"/>
-  </g>
+  <path d="M50 8 L8 80 L50 60 Z" fill="url(#f1)"/>
+  <path d="M50 8 L92 80 L50 60 Z" fill="url(#f2)"/>
+  <path d="M8 80 L92 80 L50 60 Z" fill="url(#f3)"/>
+  <path d="M50 8 L8 80 L92 80 Z M50 8 L50 60 M8 80 L50 60 M92 80 L50 60" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.1" stroke-linejoin="round"/>
 </svg>

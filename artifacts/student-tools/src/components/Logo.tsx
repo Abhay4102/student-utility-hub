@@ -71,12 +71,12 @@ function LogoMark({ size, animated }: { size: number; animated: boolean }) {
         </linearGradient>
       </defs>
 
-      <g className="treo-prism" transform="translate(50 54)">
-        <path className="treo-face" d="M0 -46 L-42 26 L0 6 Z" fill="url(#treoFace1)" />
-        <path className="treo-face treo-face-2" d="M0 -46 L42 26 L0 6 Z" fill="url(#treoFace2)" />
-        <path className="treo-face treo-face-3" d="M-42 26 L42 26 L0 6 Z" fill="url(#treoFace3)" />
+      <g className="treo-prism">
+        <path className="treo-face" d="M50 8 L8 80 L50 60 Z" fill="url(#treoFace1)" />
+        <path className="treo-face treo-face-2" d="M50 8 L92 80 L50 60 Z" fill="url(#treoFace2)" />
+        <path className="treo-face treo-face-3" d="M8 80 L92 80 L50 60 Z" fill="url(#treoFace3)" />
         <path
-          d="M0 -46 L-42 26 L42 26 Z M0 -46 L0 6 M-42 26 L0 6 M42 26 L0 6"
+          d="M50 8 L8 80 L92 80 Z M50 8 L50 60 M8 80 L50 60 M92 80 L50 60"
           fill="none"
           stroke="#ffffff"
           strokeOpacity="0.35"

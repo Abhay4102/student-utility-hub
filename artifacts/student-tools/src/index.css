@@ -284,8 +284,7 @@
   cursor: pointer;
 }
 .treo-prism {
-  transform-box: fill-box;
-  transform-origin: center;
+  transform-origin: 50px 44px;
 }
 .treo-logo:hover .treo-prism,
 .treo-logo:active .treo-prism,
