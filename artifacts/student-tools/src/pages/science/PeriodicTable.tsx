@@ -3,7 +3,7 @@ import { ToolLayout } from "@/components/ToolLayout";
 import { Input } from "@/components/ui/input";
 import { FlaskConical, X, Search, Layers, Thermometer, Atom, Info } from "lucide-react";
 import {
-  ELEMENTS, CATEGORY_STYLES, getBlock, getShells,
+  ELEMENTS, CATEGORY_STYLES, getBlock, getShells, xCol,
   type ElementData, type Block, type Phase,
 } from "./periodicData";
 import { BohrDiagram } from "./BohrDiagram";
@@ -106,7 +106,7 @@ export default function PeriodicTable() {
 
   const byPos = useMemo(() => {
     const m: Record<string, ElementData> = {};
-    ELEMENTS.forEach((el) => { m[`${el.period}-${el.group}`] = el; });
+    ELEMENTS.forEach((el) => { m[`${el.period}-${xCol(el)}`] = el; });
     return m;
   }, []);
 
@@ -138,7 +138,7 @@ export default function PeriodicTable() {
   }, []);
 
   const rows = [1, 2, 3, 4, 5, 6, 7];
-  const cols = Array.from({ length: 18 }, (_, i) => i + 1);
+  const cols = Array.from({ length: 32 }, (_, i) => i + 1);
 
   return (
     <ToolLayout
@@ -221,32 +221,17 @@ export default function PeriodicTable() {
           )}
         </div>
 
-        {/* Table */}
+        {/* Table — full extended (long-form) layout: every element in its true place, no range placeholders. */}
+        <p className="text-[11px] text-muted-foreground sm:hidden">
+          ← Swipe horizontally to see all 32 columns →
+        </p>
         <div className="overflow-x-auto pb-2 -mx-2 px-2">
-          <div style={{ minWidth: 720 }}>
-            <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(18, minmax(0, 1fr))" }}>
+          <div style={{ minWidth: 1280 }}>
+            <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(32, minmax(0, 1fr))" }}>
               {rows.map((period) =>
-                cols.map((group) => {
-                  const el = byPos[`${period}-${group}`];
-                  if (!el) {
-                    if (period === 6 && group === 3) {
-                      return (
-                        <div key={`${period}-${group}`}
-                          className="w-full aspect-square flex flex-col items-center justify-center rounded-md border border-pink-300 dark:border-pink-500/30 bg-pink-100/60 dark:bg-pink-950/30 text-pink-700 dark:text-pink-300 text-[0.42rem] font-bold leading-tight text-center">
-                          57-71<br/>La-Lu
-                        </div>
-                      );
-                    }
-                    if (period === 7 && group === 3) {
-                      return (
-                        <div key={`${period}-${group}`}
-                          className="w-full aspect-square flex flex-col items-center justify-center rounded-md border border-fuchsia-300 dark:border-fuchsia-500/30 bg-fuchsia-100/60 dark:bg-fuchsia-950/30 text-fuchsia-700 dark:text-fuchsia-300 text-[0.42rem] font-bold leading-tight text-center">
-                          89-103<br/>Ac-Lr
-                        </div>
-                      );
-                    }
-                    return <div key={`${period}-${group}`} />;
-                  }
+                cols.map((col) => {
+                  const el = byPos[`${period}-${col}`];
+                  if (!el) return <div key={`${period}-${col}`} />;
                   return (
                     <ElementCell
                       key={el.number}
@@ -260,31 +245,6 @@ export default function PeriodicTable() {
                   );
                 }),
               )}
-            </div>
-
-            {/* Lanthanide + Actinide rows */}
-            <div className="mt-2 grid gap-1" style={{ gridTemplateColumns: "repeat(18, minmax(0, 1fr))" }}>
-              <div className="col-span-3" />
-              {[9, 10, 11, 12, 13, 14, 15, 16, 17, 18].map((group) => {
-                const lant = byPos[`9-${group}`];
-                const act = byPos[`10-${group}`];
-                return (
-                  <div key={group} className="flex flex-col gap-1">
-                    {lant && (
-                      <ElementCell el={lant} onClick={setSelected}
-                        isMatch={selected?.number === lant.number || (anyFilter && matches.has(lant.number))}
-                        dim={anyFilter && !matches.has(lant.number)}
-                        view={view} ranges={ranges} />
-                    )}
-                    {act && (
-                      <ElementCell el={act} onClick={setSelected}
-                        isMatch={selected?.number === act.number || (anyFilter && matches.has(act.number))}
-                        dim={anyFilter && !matches.has(act.number)}
-                        view={view} ranges={ranges} />
-                    )}
-                  </div>
-                );
-              })}
             </div>
           </div>
         </div>
@@ -396,8 +356,15 @@ function ElementDetail({ el, onClose }: { el: ElementData; onClose: () => void }
             </div>
           )}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">
-            <Detail label="Group" value={el.period <= 8 ? String(el.group) : el.category === "lanthanide" ? "Lanthanides" : "Actinides"} />
-            <Detail label="Period" value={String(el.period <= 8 ? el.period : el.period === 9 ? 6 : 7)} />
+            <Detail
+              label="Group"
+              value={
+                el.category === "lanthanide" ? "Lanthanides (f-block)" :
+                el.category === "actinide"   ? "Actinides (f-block)" :
+                String(el.group)
+              }
+            />
+            <Detail label="Period" value={String(el.period)} />
             <Detail label="Block" value={`${block.toUpperCase()}-block`} />
             <Detail label="Phase (25°C)" value={cap(el.phase)} />
             <Detail label="Atomic mass" value={`${el.mass} u`} />
