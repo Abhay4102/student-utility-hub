@@ -398,6 +398,167 @@ router.post("/ai/paraphrase", async (req, res) => {
 
 /* -------------------- AI CONTENT DETECTOR -------------------- */
 
+/* ---- AI cliché phrase bank (known LLM tells) ---- */
+const AI_CLICHES = [
+  "delve into","delves into","delving into","in conclusion","to conclude","in summary","to summarize","to sum up",
+  "it is important to note","it's important to note","it is worth noting","it's worth noting","it should be noted",
+  "moreover","furthermore","additionally","in addition to this","on the other hand","that being said","with that said",
+  "tapestry","vibrant tapestry","rich tapestry","navigate the landscape","navigate the complexities","navigating the",
+  "in today's world","in today's fast-paced","in the modern era","in the contemporary world","in recent years",
+  "play a crucial role","plays a crucial role","play a pivotal role","plays a pivotal role","play a significant role",
+  "in the realm of","the realm of","at the heart of","at its core","cornerstone of",
+  "a testament to","stands as a testament","stand as a testament","speaks volumes",
+  "harness the power","harnessing the power","leverage the","leveraging the",
+  "embark on a journey","embark on this journey","embarking on","unlock the potential","unlocking the",
+  "shed light on","sheds light on","shedding light on","a deeper understanding","gain a deeper",
+  "ever-evolving","ever-changing","ever-expanding","ever-growing","game-changer","game changing",
+  "underscores the importance","underscores the need","emphasizes the importance","highlights the importance",
+  "as we delve","let us delve","let's delve","as we explore","as we examine",
+  "in essence","essentially","fundamentally","ultimately",
+  "the importance of","the significance of","the role of","the impact of",
+  "fosters","fostering","encompasses","encompassing","epitomizes","epitomized by",
+  "intricate","intricacies","myriad","multifaceted","paramount","pivotal","robust","seamless","seamlessly",
+  "navigate the","navigating the","crucial","essentially crucial",
+  "not only","but also",
+];
+
+interface DetectorStats {
+  totalWords: number;
+  totalSentences: number;
+  avgSentenceLength: number;
+  sentenceLengthStdDev: number;
+  burstiness: number;
+  typeTokenRatio: number;
+  aiClicheCount: number;
+  aiClicheMatches: string[];
+  emDashesPer100Words: number;
+  semicolonCount: number;
+  repeatedTrigrams: number;
+  repeatedSentenceOpeners: number;
+  paragraphCount: number;
+}
+
+function analyzeText(text: string): DetectorStats {
+  const sentences = text
+    .replace(/\s+/g, " ")
+    .split(/(?<=[.!?])\s+(?=[A-Z"'(])/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  const wordsPerSentence = sentences.map((s) => (s.match(/\b[\w'-]+\b/g) || []).length);
+  const totalWords = wordsPerSentence.reduce((a, b) => a + b, 0);
+  const avgLen = totalWords / Math.max(1, sentences.length);
+  const variance = wordsPerSentence.reduce((a, n) => a + (n - avgLen) ** 2, 0) / Math.max(1, sentences.length);
+  const stdDev = Math.sqrt(variance);
+  const burstiness = avgLen > 0 ? stdDev / avgLen : 0;
+
+  const words = (text.toLowerCase().match(/\b[a-z'-]+\b/g) || []);
+  const uniqueWords = new Set(words);
+  const ttr = words.length > 0 ? uniqueWords.size / words.length : 0;
+
+  const lowered = text.toLowerCase();
+  const cliches: string[] = [];
+  let clicheCount = 0;
+  for (const c of AI_CLICHES) {
+    const escaped = c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/'/g, "['\u2019]");
+    const re = new RegExp(`\\b${escaped}\\b`, "gi");
+    const m = lowered.match(re);
+    if (m && m.length > 0) {
+      clicheCount += m.length;
+      cliches.push(c);
+    }
+  }
+
+  const emDashes = (text.match(/—/g) || []).length;
+  const semicolons = (text.match(/;/g) || []).length;
+  const emDashRate = totalWords > 0 ? (emDashes / totalWords) * 100 : 0;
+
+  const trigramCounts: Record<string, number> = {};
+  for (let i = 0; i < words.length - 2; i++) {
+    const tg = `${words[i]} ${words[i + 1]} ${words[i + 2]}`;
+    trigramCounts[tg] = (trigramCounts[tg] || 0) + 1;
+  }
+  const repeatedTrigrams = Object.values(trigramCounts).filter((c) => c > 1).length;
+
+  const openerCounts: Record<string, number> = {};
+  for (const s of sentences) {
+    const first = (s.split(/\s+/)[0] || "").toLowerCase().replace(/[^a-z']/g, "");
+    if (first) openerCounts[first] = (openerCounts[first] || 0) + 1;
+  }
+  const repeatedSentenceOpeners = Object.values(openerCounts).filter((c) => c > 1).reduce((a, b) => a + b, 0);
+
+  const paragraphCount = text.split(/\n{2,}/).filter((p) => p.trim().length > 0).length || 1;
+
+  return {
+    totalWords,
+    totalSentences: sentences.length,
+    avgSentenceLength: Number(avgLen.toFixed(1)),
+    sentenceLengthStdDev: Number(stdDev.toFixed(1)),
+    burstiness: Number(burstiness.toFixed(2)),
+    typeTokenRatio: Number(ttr.toFixed(3)),
+    aiClicheCount: clicheCount,
+    aiClicheMatches: cliches.slice(0, 12),
+    emDashesPer100Words: Number(emDashRate.toFixed(2)),
+    semicolonCount: semicolons,
+    repeatedTrigrams,
+    repeatedSentenceOpeners,
+    paragraphCount,
+  };
+}
+
+/** Compute a 0-100 AI probability from purely statistical signals. */
+function statsScoreFor(s: DetectorStats): number {
+  let score = 45; // neutral baseline (slight lean human)
+
+  // Burstiness: human ~0.55-0.9, AI ~0.20-0.45 (only meaningful with enough sentences)
+  if (s.totalSentences >= 4) {
+    if (s.burstiness < 0.25) score += 14;
+    else if (s.burstiness < 0.4) score += 8;
+    else if (s.burstiness > 0.75) score -= 12;
+    else if (s.burstiness > 0.55) score -= 5;
+  }
+
+  // Type-token ratio is meaningful at scale
+  if (s.totalWords >= 200) {
+    if (s.typeTokenRatio < 0.35) score += 6;
+    else if (s.typeTokenRatio > 0.55) score -= 4;
+  }
+
+  // AI clichés — strong tell
+  const clicheRate = s.totalWords > 0 ? (s.aiClicheCount / s.totalWords) * 1000 : 0; // per 1000 words
+  if (clicheRate >= 8) score += 25;
+  else if (clicheRate >= 4) score += 15;
+  else if (clicheRate >= 2) score += 8;
+  else if (s.aiClicheCount > 0) score += 4;
+
+  // Em-dash density (per 100 words). Heavy use is an AI tell.
+  if (s.emDashesPer100Words > 2.0) score += 12;
+  else if (s.emDashesPer100Words > 1.0) score += 6;
+  else if (s.emDashesPer100Words > 0.5) score += 3;
+
+  // Semicolons in casual / student text are a mild AI signal
+  if (s.totalWords > 0) {
+    const semiRate = (s.semicolonCount / s.totalWords) * 100;
+    if (semiRate > 0.8) score += 5;
+  }
+
+  // Repeated openers (relative to total)
+  if (s.totalSentences >= 5) {
+    const ratio = s.repeatedSentenceOpeners / s.totalSentences;
+    if (ratio > 0.5) score += 6;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function verdictForProb(p: number): string {
+  if (p <= 25) return "Likely Human";
+  if (p <= 45) return "Mostly Human";
+  if (p <= 60) return "Mixed";
+  if (p <= 80) return "Mostly AI";
+  return "Likely AI";
+}
+
 router.post("/ai/detect", async (req, res) => {
   const { text } = req.body as { text?: string };
 
@@ -410,52 +571,63 @@ router.post("/ai/detect", async (req, res) => {
     return;
   }
 
-  const systemPrompt = `You are TREO TOOL'S AI Content Detector — a careful forensic analyst that estimates the probability a piece of text was generated by a large language model (such as ChatGPT, Gemini, Claude, Llama or similar).
+  // 1) LOCAL STATISTICAL PRE-PASS
+  const stats = analyzeText(text);
+  const statsScore = statsScoreFor(stats);
 
-You are NOT a perfect detector and you must clearly say so. Use the following linguistic signals to form your estimate:
+  // 2) LLM ANALYSIS — given the same text AND our computed statistics as evidence
+  const systemPrompt = `You are TREO TOOL'S AI Content Detector — a careful forensic linguist that estimates the probability a piece of text was generated by a large language model (ChatGPT, Gemini, Claude, Llama, DeepSeek, etc.).
 
-- Perplexity & burstiness: human writing has more variation in sentence length and unexpected word choices; AI writing tends to be smoother and more uniform.
-- Vocabulary diversity and use of unusual or specific words.
-- Repetitive sentence structures, overuse of transitional phrases ("Moreover", "Furthermore", "In conclusion", "It is important to note that", "Delve into", "Tapestry", "Navigate the landscape of").
-- Overuse of em-dashes, semicolons, or perfectly balanced "not only X but also Y" constructions.
-- Hedging clichés ("It is worth noting", "While it is true that").
-- Lack of typos, personal voice, idioms, or genuine opinions.
-- Topic drift, hallucinated facts, or generic filler that says little.
-- For technical text: overly textbook-like phrasing, perfect organisation, but shallow examples.
+You are explicitly told the following statistical evidence has already been computed from the input:
+{{STATS_PLACEHOLDER}}
 
-Respond with STRICT JSON only — no prose outside the JSON. Schema:
+Interpret the statistics:
+- "burstiness" = stddev / mean of sentence word counts. Human text typically 0.55-0.95; AI text typically 0.20-0.45 (smoother, more uniform sentences).
+- "typeTokenRatio" = unique words / total words. Below 0.35 on a 200+ word text suggests AI vocabulary repetition.
+- "aiClicheCount" counts known LLM filler phrases ("delve into", "in conclusion", "it is important to note", "vibrant tapestry", "navigate the landscape", "play a crucial role", "underscores", "ever-evolving", etc.). >4 per 1000 words is a strong AI tell.
+- "emDashesPer100Words" >1.0 is a known ChatGPT signature.
+- "repeatedSentenceOpeners" high relative to totalSentences = AI uniform structure.
+
+Combine these signals with your own holistic reading of the text. Additionally judge:
+- Perplexity (does the model find this text predictable?), unexpected/idiosyncratic word choices.
+- Personal voice, lived experience, specific names/dates/places, opinions, humor, sarcasm.
+- Hallucinated facts, generic filler, suspiciously perfect grammar.
+- Domain register (technical / casual / academic / creative) — adjust expectations.
+- For very short or technical text, lower your confidence.
+
+Then return STRICT JSON only — no prose outside the JSON — with this schema:
 
 {
-  "aiProbability": <integer 0-100, your confidence the text is AI-generated>,
-  "verdict": "<one of: 'Likely Human', 'Mostly Human', 'Mixed', 'Mostly AI', 'Likely AI'>",
+  "modelProbability": <integer 0-100, YOUR independent confidence the text is AI-generated, ignoring the stats score itself but USING the underlying signals>,
   "confidence": "<one of: 'low', 'medium', 'high'>",
-  "summary": "<2-3 sentence overall assessment in plain English>",
+  "summary": "<2-4 sentence overall assessment in clear plain English explaining WHY>",
   "signals": [
-    { "label": "<short signal name>", "weight": "<'human' or 'ai'>", "detail": "<one sentence explanation>" },
-    ... 4 to 7 such signals
+    { "label": "<short signal name, e.g. 'Low burstiness'>", "weight": "<'human' or 'ai'>", "detail": "<one sentence explanation citing concrete observations>" }
   ],
-  "suspiciousSentences": [
-    "<verbatim sentence from input that reads most AI-like>",
-    ... up to 3 sentences (empty array if none)
+  "sentenceAnalysis": [
+    { "text": "<verbatim sentence from input, max 20 sentences, in order of appearance>", "aiScore": <integer 0-100> }
   ],
   "humanizeTips": [
-    "<short actionable tip to make this more human, e.g. 'Replace the third sentence with a specific personal example.'>",
-    ... 3 to 5 tips
+    "<short actionable tip, e.g. 'Replace the third sentence with a personal example from your own experience.'>"
   ]
 }
 
-Calibration:
+Calibration scale (for your own probability):
 - 0-25 = Likely Human, 26-45 = Mostly Human, 46-60 = Mixed, 61-80 = Mostly AI, 81-100 = Likely AI.
-- Confidence should be 'low' for texts under ~150 words or in unusual styles.
-- Be honest: if the text is too short or ambiguous, say so in the summary and lower the confidence.`;
+- Confidence: 'low' for text <150 words or unusual styles, 'medium' default, 'high' only when multiple strong signals converge.
+- Be honest about uncertainty. Many false positives happen with: non-native English writers, very formal academic prose, short text, translated text.
+- Provide 4-7 signals, 3-5 humanize tips. Limit sentenceAnalysis to the 20 most informative sentences.`;
+
+  const statsBlock = JSON.stringify(stats, null, 2);
+  const finalSystem = systemPrompt.replace("{{STATS_PLACEHOLDER}}", statsBlock);
 
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-5.1",
-      max_completion_tokens: 2200,
+      max_completion_tokens: 4000,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: finalSystem },
         { role: "user", content: `Analyse this text:\n\n"""\n${text}\n"""` },
       ],
     });
@@ -468,24 +640,30 @@ Calibration:
       return;
     }
 
-    // Sanitize + enforce contract
-    const VERDICTS = ["Likely Human", "Mostly Human", "Mixed", "Mostly AI", "Likely AI"] as const;
+    // 3) SANITIZE LLM RESPONSE
     const CONFIDENCES = ["low", "medium", "high"] as const;
-    const probRaw = Number(parsed.aiProbability);
-    const aiProbability = Number.isFinite(probRaw) ? Math.max(0, Math.min(100, Math.round(probRaw))) : 50;
-    const fallbackVerdict =
-      aiProbability <= 25 ? "Likely Human" :
-      aiProbability <= 45 ? "Mostly Human" :
-      aiProbability <= 60 ? "Mixed" :
-      aiProbability <= 80 ? "Mostly AI" : "Likely AI";
-    const verdict = typeof parsed.verdict === "string" && (VERDICTS as readonly string[]).includes(parsed.verdict)
-      ? parsed.verdict : fallbackVerdict;
-    const confidence = typeof parsed.confidence === "string" && (CONFIDENCES as readonly string[]).includes(parsed.confidence)
-      ? parsed.confidence : "medium";
-    const summary = typeof parsed.summary === "string" ? parsed.summary.slice(0, 1000) : "Analysis unavailable.";
+    const modelProbRaw = Number(parsed.modelProbability ?? parsed.aiProbability);
+    const modelProbability = Number.isFinite(modelProbRaw) ? Math.max(0, Math.min(100, Math.round(modelProbRaw))) : 50;
 
-    const signalsRaw = Array.isArray(parsed.signals) ? parsed.signals : [];
-    const signals = signalsRaw
+    // 4) ENSEMBLE BLEND — model judgement (60%) + statistical signals (40%)
+    let aiProbability = Math.round(modelProbability * 0.6 + statsScore * 0.4);
+    aiProbability = Math.max(0, Math.min(100, aiProbability));
+
+    // 5) CONFIDENCE — boost when model & stats agree, drop when they disagree or text is short
+    let confidence: "low" | "medium" | "high" =
+      typeof parsed.confidence === "string" && (CONFIDENCES as readonly string[]).includes(parsed.confidence)
+        ? (parsed.confidence as "low" | "medium" | "high") : "medium";
+    const agreement = Math.abs(modelProbability - statsScore);
+    if (stats.totalWords < 150) confidence = "low";
+    else if (agreement > 35) confidence = "low";
+    else if (agreement < 12 && stats.totalWords >= 250) {
+      confidence = confidence === "low" ? "medium" : "high";
+    }
+
+    const verdict = verdictForProb(aiProbability);
+    const summary = typeof parsed.summary === "string" ? parsed.summary.slice(0, 1200) : "Analysis unavailable.";
+
+    const signals = (Array.isArray(parsed.signals) ? parsed.signals : [])
       .map((s: unknown) => {
         if (!s || typeof s !== "object") return null;
         const o = s as Record<string, unknown>;
@@ -497,17 +675,43 @@ Calibration:
       .filter((x): x is { label: string; weight: "ai" | "human"; detail: string } => x !== null)
       .slice(0, 8);
 
-    const suspiciousSentences = (Array.isArray(parsed.suspiciousSentences) ? parsed.suspiciousSentences : [])
-      .filter((s: unknown): s is string => typeof s === "string" && s.trim().length > 0)
-      .map((s: string) => s.slice(0, 500))
-      .slice(0, 3);
+    const sentenceAnalysis = (Array.isArray(parsed.sentenceAnalysis) ? parsed.sentenceAnalysis : [])
+      .map((s: unknown) => {
+        if (!s || typeof s !== "object") return null;
+        const o = s as Record<string, unknown>;
+        const t = typeof o.text === "string" ? o.text.slice(0, 600) : "";
+        const sc = Number(o.aiScore);
+        const aiScore = Number.isFinite(sc) ? Math.max(0, Math.min(100, Math.round(sc))) : 50;
+        return t ? { text: t, aiScore } : null;
+      })
+      .filter((x): x is { text: string; aiScore: number } => x !== null)
+      .slice(0, 20);
 
     const humanizeTips = (Array.isArray(parsed.humanizeTips) ? parsed.humanizeTips : [])
       .filter((s: unknown): s is string => typeof s === "string" && s.trim().length > 0)
       .map((s: string) => s.slice(0, 300))
-      .slice(0, 5);
+      .slice(0, 6);
 
-    res.json({ aiProbability, verdict, confidence, summary, signals, suspiciousSentences, humanizeTips });
+    // Backward-compatible suspiciousSentences = top 3 sentences with score >=70
+    const suspiciousSentences = sentenceAnalysis
+      .filter((s) => s.aiScore >= 70)
+      .sort((a, b) => b.aiScore - a.aiScore)
+      .slice(0, 3)
+      .map((s) => s.text);
+
+    res.json({
+      aiProbability,
+      modelProbability,
+      statsScore,
+      verdict,
+      confidence,
+      summary,
+      signals,
+      sentenceAnalysis,
+      suspiciousSentences,
+      humanizeTips,
+      stats,
+    });
   } catch (err) {
     req.log.error(err, "AI detector error");
     res.status(500).json({ error: "Failed to analyse text. Please try again." });
