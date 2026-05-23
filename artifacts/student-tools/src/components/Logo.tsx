@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface LogoProps {
@@ -28,8 +29,22 @@ export function Logo({
 }
 
 function LogoMark({ size, animated }: { size: number; animated: boolean }) {
+  const ref = useRef<SVGSVGElement>(null);
+  const timerRef = useRef<number | null>(null);
+
+  const triggerSpin = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.classList.add("treo-spinning");
+    if (timerRef.current) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      el.classList.remove("treo-spinning");
+    }, 2800);
+  };
+
   return (
     <svg
+      ref={ref}
       width={size}
       height={size}
       viewBox="0 0 100 100"
@@ -38,6 +53,8 @@ function LogoMark({ size, animated }: { size: number; animated: boolean }) {
       aria-label="TREO TOOL'S logo"
       className={animated ? "treo-logo" : undefined}
       style={{ flexShrink: 0, overflow: "visible" }}
+      onClick={animated ? triggerSpin : undefined}
+      onTouchStart={animated ? triggerSpin : undefined}
     >
       <defs>
         <linearGradient id="treoFace1" x1="0%" y1="0%" x2="100%" y2="100%">
