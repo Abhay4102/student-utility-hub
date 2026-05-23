@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { ToolLayout } from "@/components/ToolLayout";
 import { Input } from "@/components/ui/input";
-import { FlaskConical, X, Search, Layers, Thermometer, Atom, Info } from "lucide-react";
+import { FlaskConical, X, Search, Layers, Thermometer, Atom, Info, ArrowRight, ArrowLeft, ArrowDown, ArrowUp, TrendingUp } from "lucide-react";
 import {
   ELEMENTS, CATEGORY_STYLES, getBlock, getShells, xCol,
   type ElementData, type Block, type Phase,
@@ -300,8 +300,181 @@ export default function PeriodicTable() {
         ) : (
           <ElementDetail el={selected} onClose={() => setSelected(null)} />
         )}
+
+        <PeriodicTrends />
       </div>
     </ToolLayout>
+  );
+}
+
+/* -------------------- Periodic Trends explainer -------------------- */
+
+type TrendDir = "left" | "right" | "up" | "down";
+
+interface Trend {
+  name: string;
+  hindi: string;
+  groupDir: TrendDir;   // direction along a group (vertical)
+  periodDir: TrendDir;  // direction along a period (horizontal)
+  reason: string;
+  example: string;
+  accent: string;       // tailwind color classes for header
+  ring: string;
+}
+
+const TRENDS: Trend[] = [
+  {
+    name: "Atomic Radius",
+    hindi: "परमाणु त्रिज्या",
+    groupDir: "down",
+    periodDir: "left",
+    reason: "Group me neeche jaate hain to naya shell add hota hai — size badhti. Period me left → right jaate hain to nuclear charge badhti par shell wahi rehti, electrons andar khichte — size ghatti.",
+    example: "Cs sabse bada, He sabse chhota.",
+    accent: "bg-sky-100 dark:bg-sky-950/60 text-sky-800 dark:text-sky-200 border-sky-300 dark:border-sky-700",
+    ring: "ring-sky-400",
+  },
+  {
+    name: "Ionization Energy",
+    hindi: "आयनन ऊर्जा (I.E.)",
+    groupDir: "up",
+    periodDir: "right",
+    reason: "Outer electron nikalne ke liye chahiye energy. Group me upar jaate electron nucleus ke kareeb — IE badhti. Period me right jaate effective nuclear charge badhta — electron tightly held — IE badhti.",
+    example: "Helium sabse zyada (~2372 kJ/mol), Caesium sabse kam.",
+    accent: "bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-700",
+    ring: "ring-rose-400",
+  },
+  {
+    name: "Electronegativity",
+    hindi: "विद्युतऋणात्मकता",
+    groupDir: "up",
+    periodDir: "right",
+    reason: "Bond me electrons khichne ki capacity. Group me upar aur period me right jaate badhti — same reason as IE (chhota size + zyada nuclear pull).",
+    example: "Fluorine sabse zyada (3.98 Pauling), Francium sabse kam (~0.7).",
+    accent: "bg-violet-100 dark:bg-violet-950/60 text-violet-800 dark:text-violet-200 border-violet-300 dark:border-violet-700",
+    ring: "ring-violet-400",
+  },
+  {
+    name: "Electron Affinity",
+    hindi: "इलेक्ट्रॉन बंधुता",
+    groupDir: "up",
+    periodDir: "right",
+    reason: "Ek aur electron lene par release hone wali energy. Halogens (Group 17) sabse high — kyunki ek electron lekar noble-gas configuration mil jata. Period me right + Group me upar zyada.",
+    example: "Chlorine highest (~349 kJ/mol).",
+    accent: "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700",
+    ring: "ring-amber-400",
+  },
+  {
+    name: "Metallic Character",
+    hindi: "धात्विक गुण",
+    groupDir: "down",
+    periodDir: "left",
+    reason: "Electron easily lose karne ki tendency = metallic nature. Group me neeche aur period me left jaate badhti. Right-top corner non-metals, left-bottom corner sabse zyada metallic.",
+    example: "Caesium / Francium sabse zyada metallic, Fluorine sabse kam.",
+    accent: "bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700",
+    ring: "ring-emerald-400",
+  },
+];
+
+function TrendIcon({ dir, className = "" }: { dir: TrendDir; className?: string }) {
+  const Cmp = dir === "left" ? ArrowLeft : dir === "right" ? ArrowRight : dir === "up" ? ArrowUp : ArrowDown;
+  return <Cmp className={`w-3.5 h-3.5 ${className}`} />;
+}
+
+function MiniGrid({ groupDir, periodDir }: { groupDir: TrendDir; periodDir: TrendDir }) {
+  // 4x4 mini grid of empty cells with two arrows overlaid showing direction of INCREASE.
+  return (
+    <div className="relative w-full max-w-[150px] aspect-square mx-auto select-none">
+      <div className="grid grid-cols-4 gap-0.5 w-full h-full">
+        {Array.from({ length: 16 }).map((_, i) => (
+          <div key={i} className="rounded-sm bg-foreground/5 dark:bg-foreground/10 border border-foreground/10" />
+        ))}
+      </div>
+      {/* Horizontal arrow (period) */}
+      <div className="absolute top-1/2 left-0 right-0 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-background/90 border border-border shadow-sm">
+          {periodDir === "left" && <ArrowLeft className="w-3.5 h-3.5" />}
+          <span className="text-[9px] font-bold uppercase tracking-wide">Period</span>
+          {periodDir === "right" && <ArrowRight className="w-3.5 h-3.5" />}
+        </div>
+      </div>
+      {/* Vertical arrow (group) */}
+      <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 flex flex-col items-center justify-center pointer-events-none">
+        <div className="flex flex-col items-center gap-0.5 px-1.5 py-2 rounded-full bg-background/90 border border-border shadow-sm">
+          {groupDir === "up" && <ArrowUp className="w-3.5 h-3.5" />}
+          <span className="text-[9px] font-bold uppercase tracking-wide [writing-mode:vertical-rl] rotate-180">Group</span>
+          {groupDir === "down" && <ArrowDown className="w-3.5 h-3.5" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PeriodicTrends() {
+  return (
+    <section className="mt-6 rounded-2xl border border-border bg-card overflow-hidden" data-testid="periodic-trends">
+      <header className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
+        <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+          <TrendingUp className="w-4 h-4" />
+        </div>
+        <div>
+          <h3 className="font-bold text-sm sm:text-base">Periodic Trends — कैसे बदलती हैं properties</h3>
+          <p className="text-[11px] sm:text-xs text-muted-foreground">Arrows direction of <b>increase</b> dikhate hain. Ulta direction me ghatti hai.</p>
+        </div>
+      </header>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+        {TRENDS.map((t) => (
+          <article
+            key={t.name}
+            className={`rounded-xl border p-3 sm:p-4 flex flex-col gap-3 ${t.accent}`}
+          >
+            <div>
+              <h4 className="font-bold text-sm sm:text-base leading-tight">{t.name}</h4>
+              <p className="text-[11px] opacity-80">{t.hindi}</p>
+            </div>
+
+            <MiniGrid groupDir={t.groupDir} periodDir={t.periodDir} />
+
+            <div className="grid grid-cols-2 gap-1.5 text-[10px] sm:text-[11px]">
+              <div className="rounded-md bg-background/60 border border-border/60 px-2 py-1.5 flex items-center justify-between gap-1">
+                <span className="opacity-70 font-semibold">Period →</span>
+                <span className="flex items-center gap-0.5 font-bold">
+                  {t.periodDir === "right" ? "Badhti" : "Ghatti"}
+                  <TrendIcon dir={t.periodDir} />
+                </span>
+              </div>
+              <div className="rounded-md bg-background/60 border border-border/60 px-2 py-1.5 flex items-center justify-between gap-1">
+                <span className="opacity-70 font-semibold">Group ↓</span>
+                <span className="flex items-center gap-0.5 font-bold">
+                  {t.groupDir === "down" ? "Badhti" : "Ghatti"}
+                  <TrendIcon dir={t.groupDir} />
+                </span>
+              </div>
+            </div>
+
+            <p className="text-[11px] sm:text-xs leading-snug opacity-90">{t.reason}</p>
+
+            <div className="text-[10px] sm:text-[11px] rounded-md bg-background/60 border border-border/60 px-2 py-1.5">
+              <span className="opacity-60 uppercase tracking-wide font-bold mr-1">e.g.</span>
+              {t.example}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      {/* Quick cheat-sheet diagonal map */}
+      <div className="mx-4 mb-4 rounded-xl border border-dashed border-border p-3 sm:p-4 bg-muted/30">
+        <h4 className="text-xs sm:text-sm font-bold mb-2 flex items-center gap-1.5">
+          <Info className="w-3.5 h-3.5" /> Quick rule (yaad rakhne ka tareeka)
+        </h4>
+        <ul className="text-[11px] sm:text-xs space-y-1 text-muted-foreground leading-relaxed">
+          <li><b className="text-foreground">Right-Top corner</b> (F, Cl, O) → IE, electronegativity, electron affinity sabse <b>HIGH</b>; size sabse <b>SMALL</b>.</li>
+          <li><b className="text-foreground">Left-Bottom corner</b> (Cs, Fr) → atomic radius aur metallic character sabse <b>HIGH</b>; IE aur electronegativity sabse <b>LOW</b>.</li>
+          <li>Noble gases ki ionisation energy <b>highest in their period</b> hoti hai — fully filled stable shell jo todna mushkil.</li>
+          <li>Exception: Group 2 → 13 me IE thodi <b>ghatti</b> hai (B &lt; Be) kyunki p-orbital start hota hai (energy higher hone par bhi shielding zyada).</li>
+        </ul>
+      </div>
+    </section>
   );
 }
 
