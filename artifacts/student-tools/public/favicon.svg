@@ -4,29 +4,18 @@
       <stop offset="0%" stop-color="#0f1a2e"/>
       <stop offset="100%" stop-color="#070d1c"/>
     </linearGradient>
+    <path id="t" d="M 22 14 H 78 Q 82 14 82 18 V 36 Q 82 42 76 42 H 60 Q 56 42 56 46 V 80 Q 56 86 50 86 Q 44 86 44 80 V 46 Q 44 42 40 42 H 24 Q 18 42 18 36 V 18 Q 18 14 22 14 Z"/>
   </defs>
-  <rect x="2" y="2" width="96" height="96" rx="16" fill="url(#bg)"/>
-  <rect x="2" y="2" width="96" height="96" rx="16" fill="none" stroke="#fbbf24" stroke-width="0.6" stroke-opacity="0.18"/>
-  <g stroke-linecap="round" fill="none">
-    <g stroke="#fbbf24" stroke-width="14">
-      <line x1="22" y1="30" x2="78" y2="30"/>
-      <line x1="50" y1="30" x2="50" y2="80"/>
-    </g>
-    <g stroke="#0a1020" stroke-width="10">
-      <line x1="22" y1="30" x2="78" y2="30"/>
-      <line x1="50" y1="30" x2="50" y2="80"/>
-    </g>
-    <g stroke="#f97316" stroke-width="7.5">
-      <line x1="22" y1="30" x2="78" y2="30"/>
-      <line x1="50" y1="30" x2="50" y2="80"/>
-    </g>
-    <g stroke="#0a1020" stroke-width="4">
-      <line x1="22" y1="30" x2="78" y2="30"/>
-      <line x1="50" y1="30" x2="50" y2="80"/>
-    </g>
-    <g stroke="#dc2626" stroke-width="2.5">
-      <line x1="22" y1="30" x2="78" y2="30"/>
-      <line x1="50" y1="30" x2="50" y2="80"/>
-    </g>
-  </g>
+  <rect x="2" y="2" width="96" height="96" rx="14" fill="url(#bg)"/>
+  <rect x="2" y="2" width="96" height="96" rx="14" fill="none" stroke="#fbbf24" stroke-width="0.5" stroke-opacity="0.18"/>
+  <!-- Outer yellow -->
+  <use href="#t" fill="#fbbf24"/>
+  <!-- Gap -->
+  <use href="#t" fill="#0a1020" transform="translate(50 50) scale(0.88) translate(-50 -50)"/>
+  <!-- Middle orange -->
+  <use href="#t" fill="#f97316" transform="translate(50 50) scale(0.78) translate(-50 -50)"/>
+  <!-- Gap -->
+  <use href="#t" fill="#0a1020" transform="translate(50 50) scale(0.62) translate(-50 -50)"/>
+  <!-- Inner red core -->
+  <use href="#t" fill="#dc2626" transform="translate(50 50) scale(0.5) translate(-50 -50)"/>
 </svg>

@@ -20,6 +20,9 @@ export function Logo({ size = 32, className, showWordmark = false, wordmarkClass
   );
 }
 
+const T_PATH =
+  "M 22 14 H 78 Q 82 14 82 18 V 36 Q 82 42 76 42 H 60 Q 56 42 56 46 V 80 Q 56 86 50 86 Q 44 86 44 80 V 46 Q 44 42 40 42 H 24 Q 18 42 18 36 V 18 Q 18 14 22 14 Z";
+
 function LogoMark({ size }: { size: number }) {
   return (
     <svg
@@ -38,38 +41,19 @@ function LogoMark({ size }: { size: number }) {
         </linearGradient>
       </defs>
 
-      {/* Dark navy badge */}
-      <rect x="2" y="2" width="96" height="96" rx="16" fill="url(#treoBg)" />
-      <rect x="2" y="2" width="96" height="96" rx="16" fill="none" stroke="#fbbf24" strokeWidth="0.6" strokeOpacity="0.18" />
+      <rect x="2" y="2" width="96" height="96" rx="14" fill="url(#treoBg)" />
+      <rect x="2" y="2" width="96" height="96" rx="14" fill="none" stroke="#fbbf24" strokeWidth="0.5" strokeOpacity="0.18" />
 
-      {/* Nested flame-colored T (3 concentric bands with dark gaps) */}
-      <g strokeLinecap="round" fill="none">
-        {/* OUTER yellow band */}
-        <g stroke="#fbbf24" strokeWidth="14">
-          <line x1="22" y1="30" x2="78" y2="30" />
-          <line x1="50" y1="30" x2="50" y2="80" />
-        </g>
-        {/* dark gap */}
-        <g stroke="#0a1020" strokeWidth="10">
-          <line x1="22" y1="30" x2="78" y2="30" />
-          <line x1="50" y1="30" x2="50" y2="80" />
-        </g>
-        {/* MIDDLE orange band */}
-        <g stroke="#f97316" strokeWidth="7.5">
-          <line x1="22" y1="30" x2="78" y2="30" />
-          <line x1="50" y1="30" x2="50" y2="80" />
-        </g>
-        {/* dark gap */}
-        <g stroke="#0a1020" strokeWidth="4">
-          <line x1="22" y1="30" x2="78" y2="30" />
-          <line x1="50" y1="30" x2="50" y2="80" />
-        </g>
-        {/* INNER red core */}
-        <g stroke="#dc2626" strokeWidth="2.5">
-          <line x1="22" y1="30" x2="78" y2="30" />
-          <line x1="50" y1="30" x2="50" y2="80" />
-        </g>
-      </g>
+      {/* Outer yellow */}
+      <path d={T_PATH} fill="#fbbf24" />
+      {/* Dark gap */}
+      <path d={T_PATH} fill="#0a1020" transform="translate(50 50) scale(0.88) translate(-50 -50)" />
+      {/* Middle orange */}
+      <path d={T_PATH} fill="#f97316" transform="translate(50 50) scale(0.78) translate(-50 -50)" />
+      {/* Dark gap */}
+      <path d={T_PATH} fill="#0a1020" transform="translate(50 50) scale(0.62) translate(-50 -50)" />
+      {/* Inner red core */}
+      <path d={T_PATH} fill="#dc2626" transform="translate(50 50) scale(0.5) translate(-50 -50)" />
     </svg>
   );
 }

@@ -96,3 +96,9 @@ id = "x1-KE16MgNnDpfggY3u5p"
 uri = "file://attached_assets/logo-options/Z-flame-t.png"
 type = "image"
 title = "Naya Flame T Logo — Live on Site"
+
+[[outputs]]
+id = "jOSCmrfKRWIF9YR5MQbin"
+uri = "file://attached_assets/logo-options/Z2-flame-t-v2.png"
+type = "image"
+title = "V2 — Flame T with arched cap (like your photo)"
