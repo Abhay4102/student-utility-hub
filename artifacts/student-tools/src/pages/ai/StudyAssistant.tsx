@@ -299,11 +299,21 @@ export default function StudyAssistant() {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const userNearBottomRef = useRef(true);
 
   const current = chats.find((c) => c.id === currentId);
   const messages = current?.messages || [];
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, streamingContent]);
+  // Auto-scroll the CHAT CONTAINER (not the page) only when:
+  //   1) messages length changes OR streaming content grows
+  //   2) the user was already near the bottom (don't yank them while reading)
+  // This prevents subject/mode changes (which mutate the messages array reference
+  // without changing its length) from triggering a scroll that yanks the page on mobile.
+  useEffect(() => {
+    const el = scrollAreaRef.current;
+    if (!el || !userNearBottomRef.current) return;
+    el.scrollTop = el.scrollHeight;
+  }, [messages.length, streamingContent.length]);
   useEffect(() => { savePrefs({ mode, subject }); }, [mode, subject]);
   useEffect(() => { saveChats(chats); }, [chats]);
 
@@ -329,6 +339,7 @@ export default function StudyAssistant() {
     if (!el) return;
     const onScroll = () => {
       const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+      userNearBottomRef.current = distanceFromBottom < 120;
       setShowScrollDown(distanceFromBottom > 200);
     };
     el.addEventListener("scroll", onScroll);
@@ -968,7 +979,11 @@ export default function StudyAssistant() {
           {/* Floating scroll-to-bottom */}
           {showScrollDown && (
             <button
-              onClick={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })}
+              onClick={() => {
+                const el = scrollAreaRef.current;
+                if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+                userNearBottomRef.current = true;
+              }}
               className="absolute bottom-4 left-1/2 -translate-x-1/2 w-9 h-9 rounded-full bg-card border border-border shadow-lg flex items-center justify-center text-foreground hover:bg-muted transition-colors"
               aria-label="Scroll to latest"
             >
