@@ -102,3 +102,9 @@ id = "jOSCmrfKRWIF9YR5MQbin"
 uri = "file://attached_assets/logo-options/Z2-flame-t-v2.png"
 type = "image"
 title = "V2 — Flame T with arched cap (like your photo)"
+
+[[outputs]]
+id = "56wwC0JtJ1Obm1PquV9M5"
+uri = "file://attached_assets/logo-options/FINAL-prism.png"
+type = "image"
+title = "FINAL — Prism Logo Live on Site"

@@ -20,9 +20,6 @@ export function Logo({ size = 32, className, showWordmark = false, wordmarkClass
   );
 }
 
-const T_PATH =
-  "M 22 14 H 78 Q 82 14 82 18 V 36 Q 82 42 76 42 H 60 Q 56 42 56 46 V 80 Q 56 86 50 86 Q 44 86 44 80 V 46 Q 44 42 40 42 H 24 Q 18 42 18 36 V 18 Q 18 14 22 14 Z";
-
 function LogoMark({ size }: { size: number }) {
   return (
     <svg
@@ -35,25 +32,41 @@ function LogoMark({ size }: { size: number }) {
       style={{ flexShrink: 0 }}
     >
       <defs>
-        <linearGradient id="treoBg" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#0f1a2e" />
-          <stop offset="100%" stopColor="#070d1c" />
+        <linearGradient id="treoBg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#0f0f1e" />
+          <stop offset="100%" stopColor="#020014" />
+        </linearGradient>
+        <linearGradient id="treoFace1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#60a5fa" />
+          <stop offset="100%" stopColor="#3b82f6" />
+        </linearGradient>
+        <linearGradient id="treoFace2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#a78bfa" />
+          <stop offset="100%" stopColor="#7c3aed" />
+        </linearGradient>
+        <linearGradient id="treoFace3" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#f472b6" />
+          <stop offset="100%" stopColor="#db2777" />
         </linearGradient>
       </defs>
 
-      <rect x="2" y="2" width="96" height="96" rx="14" fill="url(#treoBg)" />
-      <rect x="2" y="2" width="96" height="96" rx="14" fill="none" stroke="#fbbf24" strokeWidth="0.5" strokeOpacity="0.18" />
+      <rect x="2" y="2" width="96" height="96" rx="22" fill="url(#treoBg)" />
 
-      {/* Outer yellow */}
-      <path d={T_PATH} fill="#fbbf24" />
-      {/* Dark gap */}
-      <path d={T_PATH} fill="#0a1020" transform="translate(50 50) scale(0.88) translate(-50 -50)" />
-      {/* Middle orange */}
-      <path d={T_PATH} fill="#f97316" transform="translate(50 50) scale(0.78) translate(-50 -50)" />
-      {/* Dark gap */}
-      <path d={T_PATH} fill="#0a1020" transform="translate(50 50) scale(0.62) translate(-50 -50)" />
-      {/* Inner red core */}
-      <path d={T_PATH} fill="#dc2626" transform="translate(50 50) scale(0.5) translate(-50 -50)" />
+      <g transform="translate(50 52)">
+        <path d="M0 -28 L-26 16 L0 4 Z" fill="url(#treoFace1)" />
+        <path d="M0 -28 L26 16 L0 4 Z" fill="url(#treoFace2)" />
+        <path d="M-26 16 L26 16 L0 4 Z" fill="url(#treoFace3)" />
+        <path
+          d="M0 -28 L-26 16 L26 16 Z M0 -28 L0 4 M-26 16 L0 4 M26 16 L0 4"
+          fill="none"
+          stroke="#ffffff"
+          strokeOpacity="0.25"
+          strokeWidth="0.8"
+          strokeLinejoin="round"
+        />
+      </g>
+
+      <rect x="2" y="2" width="96" height="96" rx="22" fill="none" stroke="#a78bfa" strokeWidth="1" strokeOpacity="0.35" />
     </svg>
   );
 }
