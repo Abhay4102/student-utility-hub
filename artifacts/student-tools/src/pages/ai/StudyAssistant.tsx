@@ -325,11 +325,17 @@ export default function StudyAssistant() {
       : c));
   }, [mode, subject, currentId]);
 
-  // When switching to a different chat, restore its mode/subject into the selectors.
+  // When switching to a different chat, restore its mode/subject into the selectors,
+  // and reset the "near bottom" flag so the newly opened chat lands on its latest message.
   useEffect(() => {
     if (!current) return;
     if (current.mode && current.mode !== mode) setMode(current.mode);
     if (current.subject && current.subject !== subject) setSubject(current.subject);
+    userNearBottomRef.current = true;
+    requestAnimationFrame(() => {
+      const el = scrollAreaRef.current;
+      if (el) el.scrollTop = el.scrollHeight;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentId]);
 
