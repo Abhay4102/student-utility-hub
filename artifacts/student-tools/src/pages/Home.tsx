@@ -246,7 +246,7 @@ export default function Home() {
         </div>
 
         <div className="max-w-6xl mx-auto px-4 pt-16 pb-14 sm:pt-24 sm:pb-16 text-center">
-          <Logo size={80} className="mx-auto mb-6 justify-center" />
+          <Logo size={80} className="mx-auto justify-center" />
 
           <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight text-foreground mb-3">
             TREO TOOL&apos;S
