@@ -40,7 +40,7 @@ const GpaCalculator = lazy(() => import("@/pages/tools/GpaCalculator"));
 const AttendanceCalculator = lazy(() => import("@/pages/tools/AttendanceCalculator"));
 const PdfToWord = lazy(() => import("@/pages/pdf/PdfToWord"));
 const WordToPdf = lazy(() => import("@/pages/pdf/WordToPdf"));
-const Pomodoro = lazy(() => import("@/pages/tools/Pomodoro"));
+const Timer = lazy(() => import("@/pages/tools/Timer"));
 const QrGenerator = lazy(() => import("@/pages/tools/QrGenerator"));
 const YoutubeSummarizer = lazy(() => import("@/pages/ai/YoutubeSummarizer"));
 const About = lazy(() => import("@/pages/legal/About"));
@@ -92,7 +92,7 @@ function Router() {
         <Route path="/tools/attendance-calculator" component={AttendanceCalculator} />
         <Route path="/pdf/pdf-to-word" component={PdfToWord} />
         <Route path="/pdf/word-to-pdf" component={WordToPdf} />
-        <Route path="/tools/pomodoro" component={Pomodoro} />
+        <Route path="/tools/timer" component={Timer} />
         <Route path="/tools/qr-generator" component={QrGenerator} />
         <Route path="/ai/youtube-summarizer" component={YoutubeSummarizer} />
         <Route path="/about" component={About} />
