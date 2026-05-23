@@ -30,3 +30,33 @@ id = "njgX771LBlWKlfUnR_DA5"
 uri = "file://attached_assets/logo-options/D-current.png"
 type = "image"
 title = "Option D — Current (gradient rounded square — already live)"
+
+[[outputs]]
+id = "IX7qxoKim55z14-tU4GPu"
+uri = "file://attached_assets/logo-options/dark-comparison.png"
+type = "image"
+title = "Dark Variants — Side by Side"
+
+[[outputs]]
+id = "0z3bzp2EDhmSp0tARFc-E"
+uri = "file://attached_assets/logo-options/E-neon-cyan.png"
+type = "image"
+title = "E — Neon Cyan (dark badge + glowing cyan T)"
+
+[[outputs]]
+id = "qVLRLUrRGyOlyngud9LlM"
+uri = "file://attached_assets/logo-options/F-electric-violet.png"
+type = "image"
+title = "F — Electric Violet (deep purple glow, premium)"
+
+[[outputs]]
+id = "rQ4qkPXUIl78ZWOXLGhCD"
+uri = "file://attached_assets/logo-options/G-carbon-gold.png"
+type = "image"
+title = "G — Carbon Gold (black + gold, luxury feel)"
+
+[[outputs]]
+id = "KoY1Ti23tHXJKDl06r0AF"
+uri = "file://attached_assets/logo-options/H-midnight-mesh.png"
+type = "image"
+title = "H — Midnight Ice (navy + ice blue + subtle grid)"
