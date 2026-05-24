@@ -1,6 +1,7 @@
 import { Link } from "wouter";
 import { ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { useSEO } from "@/hooks/useSEO";
 
 interface InfoPageLayoutProps {
   title: string;
@@ -10,6 +11,7 @@ interface InfoPageLayoutProps {
 }
 
 export function InfoPageLayout({ title, subtitle, updated, children }: InfoPageLayoutProps) {
+  useSEO();
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">

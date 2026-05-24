@@ -1,6 +1,9 @@
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { ChevronRight, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { useSEO } from "@/hooks/useSEO";
+import { getSeo } from "@/lib/seo";
+import { ToolContent } from "@/components/ToolContent";
 
 interface ToolLayoutProps {
   title: string;
@@ -13,6 +16,9 @@ interface ToolLayoutProps {
 }
 
 export function ToolLayout({ title, description, category, categoryHref, icon, iconBg, children }: ToolLayoutProps) {
+  useSEO();
+  const [pathname] = useLocation();
+  const seo = getSeo(pathname);
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
@@ -48,6 +54,8 @@ export function ToolLayout({ title, description, category, categoryHref, icon, i
       </div>
 
       {children}
+
+      <ToolContent seo={seo} />
     </div>
   );
 }

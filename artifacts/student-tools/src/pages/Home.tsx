@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Logo } from "@/components/Logo";
+import { useSEO } from "@/hooks/useSEO";
 
 type Tool = {
   title: string;
@@ -98,6 +99,7 @@ function writeList(key: string, list: string[]) {
 }
 
 export default function Home() {
+  useSEO();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All");
   const [favorites, setFavorites] = useState<string[]>([]);

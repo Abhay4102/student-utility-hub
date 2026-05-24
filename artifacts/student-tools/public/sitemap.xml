@@ -5,12 +5,17 @@
   <!-- AI -->
   <url><loc>https://treotools.in/ai/study-assistant</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://treotools.in/ai/notes-maker</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://treotools.in/ai/paraphraser</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://treotools.in/ai/ai-detector</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://treotools.in/ai/citation-generator</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
 
   <!-- Utilities -->
-  <url><loc>https://treotools.in/tools/gpa-calculator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://treotools.in/tools/attendance-calculator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/tools/gpa-calculator</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://treotools.in/tools/attendance-calculator</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://treotools.in/calculator</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://treotools.in/tools/unit-converter</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/tools/timer</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://treotools.in/tools/qr-generator</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 
   <!-- Science -->
   <url><loc>https://treotools.in/science/periodic-table</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
@@ -23,7 +28,7 @@
   <url><loc>https://treotools.in/image/png-to-jpg</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://treotools.in/image/png-to-pdf</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://treotools.in/image/pdf-to-png</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://treotools.in/image/resize</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://treotools.in/image/resize</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
   <url><loc>https://treotools.in/image/background</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
 
   <!-- PDF Tools -->
