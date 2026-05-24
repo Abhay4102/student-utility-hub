@@ -1,0 +1,173 @@
+You are an expert full-stack Replit developer and SEO engineer.
+
+Optimize my existing website https://treotools.in inside Replit without breaking existing functionality.
+
+IMPORTANT:
+- Keep the current branding and structure
+- Do NOT remove existing tools
+- Improve everything professionally
+- Make all changes production-ready
+- Ensure everything works correctly on Replit deployment
+
+STACK REQUIREMENTS:
+- Compatible with Replit
+- Mobile responsive
+- SEO optimized
+- Fast loading
+- AdSense-ready
+- Clean modern UI
+
+Implement ALL of the following:
+
+========================
+1. GLOBAL SEO SYSTEM
+========================
+
+Add:
+- Dynamic meta titles
+- Dynamic meta descriptions
+- Open Graph tags
+- Twitter card metadata
+- Canonical URLs
+- robots.txt
+- auto-generated sitemap.xml
+- structured schema markup (Organization, Website, FAQ, Tool)
+- semantic HTML
+- breadcrumb support
+
+Every page must have unique SEO metadata.
+
+========================
+2. TOOL PAGE SEO
+========================
+
+For every tool page:
+- Add keyword-rich introduction
+- Add “How to Use”
+- Add FAQ section
+- Add Benefits section
+- Add Related Tools section
+- Add internal linking
+- Add proper H1/H2/H3 hierarchy
+
+Example keyword targets:
+- AI note maker for students
+- free citation generator
+- online word counter
+- CGPA calculator
+
+========================
+3. PERFORMANCE OPTIMIZATION
+========================
+
+Implement:
+- Lazy loading
+- Code splitting
+- Optimized rendering
+- Image optimization
+- Skeleton loaders
+- Fast mobile performance
+- Core Web Vitals improvements
+
+========================
+4. UI/UX IMPROVEMENTS
+========================
+
+Improve:
+- spacing
+- typography
+- responsiveness
+- buttons
+- cards
+- hover effects
+- transitions
+- sticky navbar
+- footer
+- mobile navigation
+
+Keep design modern, minimal, and professional.
+
+========================
+5. BLOG SYSTEM FOR SEO
+========================
+
+Create blog functionality with SEO-friendly routes.
+
+Generate example blog posts:
+- Best AI Tools for Students
+- How to Improve Productivity
+- Best Free Study Tools
+- How to Calculate CGPA
+
+Each blog page must:
+- have SEO metadata
+- proper headings
+- internal links
+- responsive design
+
+========================
+6. GOOGLE INDEXING SUPPORT
+========================
+
+Ensure:
+- all pages are crawlable
+- sitemap works correctly
+- metadata renders correctly
+- proper URL structure
+- no broken links
+- clean navigation
+
+========================
+7. MONETIZATION READY
+========================
+
+Prepare clean ad sections for:
+- Google AdSense
+- Monetag
+- Ezoic
+
+DO NOT use spammy ads or intrusive popups.
+
+Keep layout clean and user-friendly.
+
+========================
+8. TRUST PAGES
+========================
+
+Create:
+- About page
+- Contact page
+- Privacy Policy
+- Terms & Conditions
+- Disclaimer
+
+========================
+9. HOMEPAGE IMPROVEMENTS
+========================
+
+Add:
+- Featured tools section
+- Trending tools
+- Categories
+- Search functionality
+- CTA sections
+- Better hero section
+- Improved layout structure
+
+========================
+10. FINAL RESULT
+========================
+
+The final website should:
+- look like a professional SaaS/student platform
+- rank better on Google
+- improve retention
+- support long-term organic growth
+- be fully responsive
+- work perfectly on Replit deployment
+- increase monetization potential
+- remain lightweight and fast
+
+Generate all required code changes automatically.
+Do not leave placeholders.
+Ensure everything is fully functional.
